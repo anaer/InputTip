@@ -34,9 +34,9 @@ compareVersion(new, old) {
  * @param urls 版本检查 URL 列表
  */
 checkVersion(currentVersion, callback, urls := [
-    "https://gitee.com/abgox/InputTip/raw/main/src/version.txt",
     "https://inputtip.abgox.com/releases/v2/version.txt",
-    "https://github.com/abgox/InputTip/raw/main/src/version.txt"
+    "https://github.com/abgox/InputTip/raw/main/src/version.txt",
+    "https://gitee.com/abgox/InputTip/raw/main/src/version.txt",
 ]) {
     currentVersion := StrReplace(currentVersion, "v", "")
     check(1)
