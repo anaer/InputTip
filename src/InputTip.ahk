@@ -200,23 +200,26 @@ returnCanShowSymbol(&left, &top, &right, &bottom) {
     try {
         res := GetCaretPosEx(&left, &top, &right, &bottom)
     } catch {
-        left := 0
-        top := 0
-        right := 0
-        bottom := 0
+        left := 0, top := 0, right := 0, bottom := 0
         return 0
     }
+
     try {
         s := isWhichScreen(screenList)
         if (s.num) {
             try {
-                left += app_offset_screen.%s.num%.x
-                top += app_offset_screen.%s.num%.y
-            } catch {
-                writeIni(s.num, "0/0", "App-Offset-Screen")
+                offset := app_offset_screen.%s.num%
+                left += offset.x
+                top += offset.y
             }
-            left += app_offset.%exe_name%.%s.num%.x
-            top += app_offset.%exe_name%.%s.num%.y
+            try {
+                offset := app_offset.%exe_name exe_title%.%s.num%
+                left += offset.x
+                top += offset.y
+            } catch {
+                left += app_offset.%exe_name%.%s.num%.x
+                top += app_offset.%exe_name%.%s.num%.y
+            }
         }
     }
     return res && left

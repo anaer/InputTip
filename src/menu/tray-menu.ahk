@@ -330,8 +330,8 @@ fn_common(args, cb_updateVar) {
             e_add_manually(item, *) {
                 itemValue := {
                     exe_name: "",
-                    isGlobal: "进程级",
-                    isRegex: "相等",
+                    tipGlobal: "进程级",
+                    tipRegex: "相等",
                     title: "",
                     id: FormatTime(A_Now, "yyyy-MM-dd-HH:mm:ss") "." A_MSec,
                     configName: item._config
@@ -352,8 +352,8 @@ fn_common(args, cb_updateVar) {
 
                 itemValue := {
                     exe_name: LV.GetText(RowNumber, 1),
-                    isGlobal: LV.GetText(RowNumber, 2),
-                    isRegex: LV.GetText(RowNumber, 3),
+                    tipGlobal: LV.GetText(RowNumber, 2),
+                    tipRegex: LV.GetText(RowNumber, 3),
                     title: LV.GetText(RowNumber, 4),
                     id: LV.GetText(RowNumber, 5),
                     configName: LV._config
@@ -365,7 +365,7 @@ fn_common(args, cb_updateVar) {
             }
 
             fn_edit(LV, RowNumber, action, itemValue) {
-                ; 是否自动添加到白名单中
+                ; 是否自动添加到符号显示白名单中
                 needAddWhiteList := 1
 
                 if (action == "edit") {
@@ -386,7 +386,7 @@ fn_common(args, cb_updateVar) {
                 bw := w - g.MarginX * 2
 
                 if (action != "edit" && itemValue.configName != "App-ShowSymbol") {
-                    g.AddText("cRed", "是否自动添加到白名单中: ")
+                    g.AddText("cRed", "是否添加到【符号显示白名单】中: ")
                     _ := g.AddDropDownList("yp", ["【否】不添加", "【是】自动添加"])
                     _.Value := needAddWhiteList + 1
                     _.OnEvent("Change", e_change)
@@ -409,21 +409,21 @@ fn_common(args, cb_updateVar) {
 
                 g.AddText("xs", "2. 匹配范围: ")
                 _ := g.AddDropDownList("yp w" scaleWidth, ["进程级", "标题级"])
-                _.Text := itemValue.isGlobal
+                _.Text := itemValue.tipGlobal
                 _.OnEvent("Change", e_changeLevel)
                 e_changeLevel(item, *) {
                     v := item.Text
-                    itemValue.isGlobal := v
+                    itemValue.tipGlobal := v
                 }
 
                 g.AddText("xs cGray", "【匹配模式】和【匹配标题】仅在【匹配范围】为【标题级】时有效")
                 g.AddText("xs", "3. 匹配模式: ")
                 _ := g.AddDropDownList("yp w" scaleWidth, ["相等", "正则"])
-                _.Text := itemValue.isRegex
+                _.Text := itemValue.tipRegex
                 _.OnEvent("Change", e_changeMatch)
                 e_changeMatch(item, *) {
                     v := item.Text
-                    itemValue.isRegex := v
+                    itemValue.tipRegex := v
                 }
 
                 g.AddText("xs", "4. 匹配标题: ")
@@ -449,22 +449,21 @@ fn_common(args, cb_updateVar) {
                 fn_set(action, delete) {
                     g.Destroy()
 
-                    try {
-                        IniDelete("InputTip.ini", itemValue.configName, itemValue.id)
-                    }
-
                     if (delete) {
-                        LV.Delete(RowNumber)
+                        try {
+                            IniDelete("InputTip.ini", itemValue.configName, itemValue.id)
+                            LV.Delete(RowNumber)
+                        }
                     } else {
-                        isGlobal := itemValue.isGlobal == "进程级" ? 1 : 0
-                        isRegex := itemValue.isRegex == "正则" ? 1 : 0
+                        isGlobal := itemValue.tipGlobal == "进程级" ? 1 : 0
+                        isRegex := itemValue.tipRegex == "正则" ? 1 : 0
                         value := itemValue.exe_name ":" isGlobal ":" isRegex ":" itemValue.title
                         ; 没有进行移动
                         writeIni(itemValue.id, value, itemValue.configName, "InputTip.ini")
                         if (action == "edit") {
-                            LV.Modify(RowNumber, , itemValue.exe_name, itemValue.isGlobal, itemValue.isRegex, itemValue.title, itemValue.id)
+                            LV.Modify(RowNumber, , itemValue.exe_name, itemValue.tipGlobal, itemValue.tipRegex, itemValue.title, itemValue.id)
                         } else {
-                            LV.Insert(RowNumber, , itemValue.exe_name, itemValue.isGlobal, itemValue.isRegex, itemValue.title, itemValue.id)
+                            LV.Insert(RowNumber, , itemValue.exe_name, itemValue.tipGlobal, itemValue.tipRegex, itemValue.title, itemValue.id)
                         }
 
                         if (needAddWhiteList) {
@@ -493,8 +492,8 @@ fn_common(args, cb_updateVar) {
 
                     itemValue := {
                         exe_name: windowInfo.exe_name,
-                        isGlobal: "进程级",
-                        isRegex: "相等",
+                        tipGlobal: "进程级",
+                        tipRegex: "相等",
                         title: windowInfo.title,
                         id: windowInfo.id,
                         configName: args.parentArgs.configName
@@ -507,8 +506,8 @@ fn_common(args, cb_updateVar) {
 
                     itemValue := {
                         exe_name: windowInfo.exe_name,
-                        isGlobal: "进程级",
-                        isRegex: "相等",
+                        tipGlobal: "进程级",
+                        tipRegex: "相等",
                         title: windowInfo.title,
                         id: windowInfo.id,
                         configName: args.parentArgs.configName
@@ -517,7 +516,7 @@ fn_common(args, cb_updateVar) {
                 }
             }
             tab.UseTab(2)
-            g.AddEdit("Section r11 w" w, "1. 简要说明`n   - 这个菜单用来配置【" args.tab "】的匹配规则`n   - 下方是对应的规则列表`n   - 双击列表中的任意一行，进行编辑或删除`n   - 如果需要添加，请查看下方按钮相关的使用说明`n`n2. 规则列表 —— 进程名称`n   - 应用窗口实际的进程名称`n`n3. 规则列表 —— 匹配范围`n   - 【进程级】或【标题级】`n   - 【进程级】: 只要在这个进程中时，就会触发`n   - 【标题级】: 只有在这个进程中，且标题匹配成功时，才会触发`n`n4. 规则列表 —— 匹配模式`n   - 只有当匹配范围为【标题级】时，才会生效`n   - 【相等】或【正则】，它控制标题匹配的模式`n   - 【相等】: 只有窗口标题和指定的标题完全一致，才会触发`n   - 【正则】: 使用正则表达式匹配标题，匹配成功才会触发`n`n5. 规则列表 —— 匹配标题`n   - 只有当匹配范围为【标题级】时，才会生效`n   - 指定一个标题或者正则表达式`n   - 它会根据匹配模式进行匹配`n   - 如果不知道当前窗口的相关信息(进程/标题等)，可以通过以下方式获取`n      - 【托盘菜单】=>【获取当前窗口相关进程信息】`n`n6. 规则列表 —— 创建时间`n   - 它是每条规则的创建时间`n`n7. 规则列表 —— 操作`n   - 双击列表中的任意一行，进行编辑或删除`n`n8. 按钮 —— 快捷添加`n   - 点击它，可以添加一条新的规则`n   - 它会弹出一个新的菜单页面，会显示当前正在运行的【应用进程列表】`n   - 你可以双击【应用进程列表】中的任意一行进行快速添加`n   - 详细的使用说明请参考弹出的菜单页面中的【关于】`n`n9. 按钮 —— 手动添加`n   - 点击它，可以添加一条新的规则`n   - 它会直接弹出添加窗口，你需要手动填写进程名称、标题等信息")
+            g.AddEdit("Section r11 w" w, "1. 简要说明`n   - 这个菜单用来配置【" args.tab "】的匹配规则`n   - 下方是对应的规则列表`n   - 双击列表中的任意一行，进行编辑或删除`n   - 如果需要添加，请查看下方按钮相关的使用说明`n`n2. 规则列表 —— 进程名称`n   - 应用窗口实际的进程名称`n`n3. 规则列表 —— 匹配范围`n   - 【进程级】或【标题级】`n   - 【进程级】: 只要在这个进程中时，就会触发`n   - 【标题级】: 只有在这个进程中，且标题匹配成功时，才会触发`n`n4. 规则列表 —— 匹配模式`n   - 只有当匹配范围为【标题级】时，才会生效`n   - 【相等】或【正则】，它控制标题匹配的模式`n   - 【相等】: 只有窗口标题和指定的标题完全一致，才会触发`n   - 【正则】: 使用正则表达式匹配标题，匹配成功才会触发`n`n5. 规则列表 —— 匹配标题`n   - 只有当匹配范围为【标题级】时，才会生效`n   - 指定一个标题或者正则表达式，与【匹配模式】相对应`n   - 如果不知道当前窗口的相关信息(进程/标题等)，可以通过以下方式获取`n      - 【托盘菜单】=>【获取当前窗口相关进程信息】`n`n6. 规则列表 —— 创建时间`n   - 它是每条规则的创建时间`n`n7. 规则列表 —— 操作`n   - 双击列表中的任意一行，进行编辑或删除`n`n8. 按钮 —— 快捷添加`n   - 点击它，可以添加一条新的规则`n   - 它会弹出一个新的菜单页面，会显示当前正在运行的【应用进程列表】`n   - 你可以双击【应用进程列表】中的任意一行进行快速添加`n   - 详细的使用说明请参考弹出的菜单页面中的【关于】`n`n9. 按钮 —— 手动添加`n   - 点击它，可以添加一条新的规则`n   - 它会直接弹出添加窗口，你需要手动填写进程名称、标题等信息")
             g.AddLink(, args.link)
             return g
         }
@@ -686,7 +685,7 @@ autoHdrLV(LV) {
  * @param {Func} cb_addClick 点击添加按钮的回调函数
  * @param {Func} cb_addManual 手动添加应用进程的回调函数
  */
-createProcessListGui(args, cb_addClick, cb_addManual) {
+createProcessListGui(args, cb_addClick, cb_addManual := "") {
     showGui()
     showGui(deep := 0) {
         createUniqueGui(processListGui).Show()
@@ -752,41 +751,41 @@ createProcessListGui(args, cb_addClick, cb_addManual) {
                 gc.LV_processList.Opt("+Redraw")
                 DetectHiddenWindows 1
                 autoHdrLV(gc.LV_processList)
-                g.AddButton("Section w" bw / 3, "刷新此界面").OnEvent("Click", e_fresh)
+                g.AddButton("Section w" bw / 2, "刷新此界面").OnEvent("Click", e_fresh)
                 e_fresh(*) {
                     g.Destroy()
                     showGui(deep).Show()
                 }
 
-                g.AddButton("yp w" bw / 3, "手动添加").OnEvent("Click", e_add_manually)
+                ; g.AddButton("yp w" bw / 3, "手动添加").OnEvent("Click", e_add_manually)
 
-                e_add_manually(*) {
-                    windowInfo := {
-                        exe_name: "",
-                        title: "",
-                        id: FormatTime(A_Now, "yyyy-MM-dd-HH:mm:ss") "." A_MSec
-                    }
-                    cb_addManual({
-                        windowInfo: windowInfo,
-                        parentArgs: args
-                    })
-                }
+                ; e_add_manually(*) {
+                ;     windowInfo := {
+                ;         exe_name: "",
+                ;         title: "",
+                ;         id: FormatTime(A_Now, "yyyy-MM-dd-HH:mm:ss") "." A_MSec
+                ;     }
+                ;     cb_addManual({
+                ;         windowInfo: windowInfo,
+                ;         parentArgs: args
+                ;     })
+                ; }
 
                 if (deep) {
-                    g.AddButton("yp w" bw / 3, "显示更少进程").OnEvent("Click", e_less_window)
+                    g.AddButton("yp w" bw / 2, "显示更少进程").OnEvent("Click", e_less_window)
                     e_less_window(*) {
                         g.Destroy()
                         showGui(0).Show()
                     }
                 } else {
-                    g.AddButton("yp w" bw / 3, "显示更多进程").OnEvent("Click", e_more_window)
+                    g.AddButton("yp w" bw / 2, "显示更多进程").OnEvent("Click", e_more_window)
                     e_more_window(*) {
                         g.Destroy()
                         showGui(1).Show()
                     }
                 }
                 tab.UseTab(2)
-                g.AddEdit("ReadOnly VScroll r12 w" w, "1. 简要说明`n   - 这个菜单中显示的是所有正在运行的【应用进程列表】`n   - 整个列表根据【进程名称】的首字母进行排序`n   - 双击列表中的任意一行，即可添加对应的这个应用进程`n`n2. 应用进程列表 —— 进程名称`n   - 应用程序实际运行的进程名称`n   - 如果不清楚是哪个应用的进程，可能需要通过【窗口标题】、【文件路径】来判断`n   - 或者使用第 6 点的技巧`n`n3. 应用进程列表 —— 来源`n   - 【系统】表明这个进程是从系统中获取的，它正在运行`n   - 【白名单】表明这个进程是存在于白名单中的，为了方便操作，被添加到列表中`n`n4. 应用进程列表 —— 窗口标题`n   - 这个应用进程所显示的窗口的标题`n   - 你可能需要通过它来判断这是哪一个应用的进程`n`n5. 应用进程列表 —— 文件路径`n   - 这个应用进程的可执行文件的所在路径`n   - 你可能需要通过它来判断这是哪一个应用的进程`n`n6. 技巧 —— 获取当前窗口的实时的相关进程信息`n   - 你可以使用【托盘菜单】中的【获取当前窗口相关进程信息】`n   - 它会实时获取当前激活的窗口的【进程名称】【窗口标题】【文件路径】`n`n7. 按钮 —— 刷新此界面`n   - 因为列表中显示的是当前正在运行的应用进程`n   - 如果你是先打开这个配置菜单，再打开对应的应用，它不会显示在这里`n   - 你需要重新打开这个配置菜单，或者点击这个按钮进行刷新`n`n8. 按钮 —— 手动添加`n   - 在【应用进程列表】中，可能没有你想要添加的进程，你需要点击这个按钮手动添加`n   - 可以配合第 6 点的技巧，让手动添加更方便`n`n9. 按钮 —— 显示更多进程`n   - 默认情况下，【应用进程列表】中显示的是前台应用进程，就是有窗口的应用进程`n   - 你可以点击它来显示更多的进程，比如后台进程`n`n10. 按钮 —— 显示更少进程`n   - 当你点击【显示更多进程】按钮后，会出现这个按钮`n   - 点击它又会重新显示前台应用进程")
+                g.AddEdit("ReadOnly VScroll r12 w" w, "1. 简要说明`n   - 这个菜单中显示的是所有正在运行的【应用进程列表】`n   - 整个列表根据【进程名称】的首字母进行排序`n   - 双击列表中的任意一行，即可添加对应的这个应用进程`n`n2. 应用进程列表 —— 进程名称`n   - 应用程序实际运行的进程名称`n   - 如果不清楚是哪个应用的进程，可能需要通过【窗口标题】、【文件路径】来判断`n   - 或者使用第 6 点的技巧`n`n3. 应用进程列表 —— 来源`n   - 【系统】表明这个进程是从系统中获取的，它正在运行`n   - 【白名单】表明这个进程是存在于白名单中的，为了方便操作，被添加到列表中`n`n4. 应用进程列表 —— 窗口标题`n   - 这个应用进程所显示的窗口的标题`n   - 你可能需要通过它来判断这是哪一个应用的进程`n`n5. 应用进程列表 —— 文件路径`n   - 这个应用进程的可执行文件的所在路径`n   - 你可能需要通过它来判断这是哪一个应用的进程`n`n6. 技巧 —— 获取当前窗口的实时的相关进程信息`n   - 你可以使用【托盘菜单】中的【获取当前窗口相关进程信息】`n   - 它会实时获取当前激活的窗口的【进程名称】【窗口标题】【文件路径】`n`n7. 按钮 —— 刷新此界面`n   - 因为列表中显示的是当前正在运行的应用进程`n   - 如果你是先打开这个配置菜单，再打开对应的应用，它不会显示在这里`n   - 你需要重新打开这个配置菜单，或者点击这个按钮进行刷新`n`n8. 按钮 —— 显示更多进程`n   - 默认情况下，【应用进程列表】中显示的是前台应用进程，就是有窗口的应用进程`n   - 你可以点击它来显示更多的进程，比如后台进程`n`n9. 按钮 —— 显示更少进程`n   - 当你点击【显示更多进程】按钮后，会出现这个按钮`n   - 点击它又会重新显示前台应用进程")
                 return g
             }
             return showGui()

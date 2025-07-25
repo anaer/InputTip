@@ -62,8 +62,8 @@ fn_switch_window(*) {
                 itemValue := {
                     exe_name: LV.GetText(RowNumber, 1),
                     status: stateMap.%from%,
-                    isGlobal: LV.GetText(RowNumber, 2),
-                    isRegex: LV.GetText(RowNumber, 3),
+                    tipGlobal: LV.GetText(RowNumber, 2),
+                    tipRegex: LV.GetText(RowNumber, 3),
                     title: LV.GetText(RowNumber, 4),
                     id: LV.GetText(RowNumber, 5)
                 }
@@ -74,8 +74,8 @@ fn_switch_window(*) {
             }
 
             fn_edit(LV, RowNumber, from, action, itemValue) {
-                ; 是否自动添加到白名单中
-                needAddWhiteList := 0
+                ; 是否自动添加到符号显示白名单中
+                needAddWhiteList := 1
 
                 if (action == "edit") {
                     actionText := "编辑"
@@ -95,7 +95,7 @@ fn_switch_window(*) {
                 bw := w - g.MarginX * 2
 
                 if (action != "edit") {
-                    g.AddText("cRed", "是否自动添加到白名单中: ")
+                    g.AddText("cRed", "是否添加到【符号显示白名单】中: ")
                     _ := g.AddDropDownList("yp", ["【否】不添加", "【是】自动添加"])
                     _.Value := needAddWhiteList + 1
                     _.OnEvent("Change", e_change)
@@ -127,21 +127,21 @@ fn_switch_window(*) {
 
                 g.AddText("xs", "3. 匹配范围: ")
                 _ := g.AddDropDownList("yp w" scaleWidth, ["进程级", "标题级"])
-                _.Text := itemValue.isGlobal
+                _.Text := itemValue.tipGlobal
                 _.OnEvent("Change", e_changeLevel)
                 e_changeLevel(item, *) {
                     v := item.Text
-                    itemValue.isGlobal := v
+                    itemValue.tipGlobal := v
                 }
 
                 g.AddText("xs cGray", "【匹配模式】和【匹配标题】仅在【匹配范围】为【标题级】时有效")
                 g.AddText("xs", "4. 匹配模式: ")
                 _ := g.AddDropDownList("yp w" scaleWidth, ["相等", "正则"])
-                _.Text := itemValue.isRegex
+                _.Text := itemValue.tipRegex
                 _.OnEvent("Change", e_changeMatch)
                 e_changeMatch(item, *) {
                     v := item.Text
-                    itemValue.isRegex := v
+                    itemValue.tipRegex := v
                 }
 
                 g.AddText("xs", "5. 匹配标题: ")
@@ -167,21 +167,20 @@ fn_switch_window(*) {
                 fn_set(action, delete) {
                     g.Destroy()
 
-                    try {
-                        IniDelete("InputTip.ini", "App-" from, itemValue.id)
-                    }
-
                     if (delete) {
-                        LV.Delete(RowNumber)
-                        gc.%from "_title"%.Text := "( " gc.%"LV_" from%.GetCount() " 个 )"
+                        try {
+                            IniDelete("InputTip.ini", "App-" from, itemValue.id)
+                            LV.Delete(RowNumber)
+                            gc.%from "_title"%.Text := "( " gc.%"LV_" from%.GetCount() " 个 )"
+                        }
                     } else {
-                        isGlobal := itemValue.isGlobal == "进程级" ? 1 : 0
-                        isRegex := itemValue.isRegex == "正则" ? 1 : 0
+                        isGlobal := itemValue.tipGlobal == "进程级" ? 1 : 0
+                        isRegex := itemValue.tipRegex == "正则" ? 1 : 0
                         value := itemValue.exe_name ":" isGlobal ":" isRegex ":" itemValue.title
                         ; 没有进行移动
                         if (itemValue.status == from) {
                             writeIni(itemValue.id, value, "App-" from, "InputTip.ini")
-                            LV.Modify(RowNumber, , itemValue.exe_name, itemValue.isGlobal, itemValue.isRegex, itemValue.title, itemValue.id)
+                            LV.Modify(RowNumber, , itemValue.exe_name, itemValue.tipGlobal, itemValue.tipRegex, itemValue.title, itemValue.id)
                         } else {
                             if (action == "edit") {
                                 LV.Delete(RowNumber)
@@ -189,7 +188,7 @@ fn_switch_window(*) {
                             }
                             state := stateTextMap.%itemValue.status%
                             writeIni(itemValue.id, value, "App-" state, "InputTip.ini")
-                            gc.%"LV_" state%.Insert(RowNumber, , itemValue.exe_name, itemValue.isGlobal, itemValue.isRegex, itemValue.title, itemValue.id)
+                            gc.%"LV_" state%.Insert(RowNumber, , itemValue.exe_name, itemValue.tipGlobal, itemValue.tipRegex, itemValue.title, itemValue.id)
                             gc.%state "_title"%.Text := "( " gc.%"LV_" state%.GetCount() " 个 )"
                         }
                         if (needAddWhiteList) {
@@ -212,17 +211,8 @@ fn_switch_window(*) {
                 g.AddText("yp", "的应用窗口")
                 gc.%v "_title"% := g.AddText("yp cRed w" bw / 3, "( 0 个 )")
 
-                if (symbolType = 3) {
-                    c := symbolConfig.%"textSymbol_" v "_color"% ? "c" StrReplace(symbolConfig.%"textSymbol_" v "_color"%, "#") : ""
-                } else {
-                    c := symbolConfig.%v "_color"% ? "c" StrReplace(symbolConfig.%v "_color"%, "#") : ""
-                }
                 LV := "LV_" v
-                try {
-                    gc.%LV% := g.AddListView("xs -LV0x10 -Multi r7 NoSortHdr Sort Grid w" w " " c, ["进程名称", "匹配范围", "匹配模式", "匹配标题", "创建时间"])
-                } catch {
-                    gc.%LV% := g.AddListView("xs -LV0x10 -Multi r7 NoSortHdr Sort Grid w" w, ["进程名称", "匹配范围", "匹配模式", "匹配标题", "创建时间"])
-                }
+                gc.%LV% := g.AddListView("xs -LV0x10 -Multi r7 NoSortHdr Sort Grid w" w, ["进程名称", "匹配范围", "匹配模式", "匹配标题", "创建时间"])
                 addItem(v)
                 autoHdrLV(gc.%LV%)
                 gc.%LV%.OnEvent("DoubleClick", fn_dbClick)
@@ -245,8 +235,8 @@ fn_switch_window(*) {
                     itemValue := {
                         exe_name: "",
                         status: stateMap.%item._type%,
-                        isGlobal: "进程级",
-                        isRegex: "相等",
+                        tipGlobal: "进程级",
+                        tipRegex: "相等",
                         title: "",
                         id: FormatTime(A_Now, "yyyy-MM-dd-HH:mm:ss") "." A_MSec
                     }
@@ -273,8 +263,8 @@ fn_switch_window(*) {
                     itemValue := {
                         exe_name: windowInfo.exe_name,
                         status: stateMap.%state%,
-                        isGlobal: "进程级",
-                        isRegex: "相等",
+                        tipGlobal: "进程级",
+                        tipRegex: "相等",
                         title: windowInfo.title,
                         id: windowInfo.id,
                     }
@@ -289,8 +279,8 @@ fn_switch_window(*) {
                     itemValue := {
                         exe_name: windowInfo.exe_name,
                         status: stateMap.%state%,
-                        isGlobal: "进程级",
-                        isRegex: "相等",
+                        tipGlobal: "进程级",
+                        tipRegex: "相等",
                         title: windowInfo.title,
                         id: windowInfo.id,
                     }
@@ -298,7 +288,7 @@ fn_switch_window(*) {
                 }
             }
 
-            g.AddEdit("ReadOnly VScroll r12 w" w, "1. 简要说明`n   - 这个菜单用来设置【指定窗口自动切换状态】的匹配规则`n   - 上方是三个 Tab 标签页: 【中文状态】【英文状态】【大写锁定】`n   - 下方是对应的规则列表`n   - 双击列表中的任意一行，进行编辑或删除`n   - 如果需要添加，请查看下方按钮相关的使用说明`n`n2. 规则列表 —— 进程名称`n   - 应用窗口实际的进程名称`n`n3. 规则列表 —— 匹配范围`n   - 【进程级】或【标题级】，它控制自动切换的时机`n   - 【进程级】: 只有从一个进程切换到另一个进程时，才会触发`n   - 【标题级】: 只要窗口标题发生变化，且匹配成功，就会触发`n`n4. 规则列表 —— 匹配模式`n   - 只有当匹配范围为【标题级】时，才会生效`n   - 【相等】或【正则】，它控制标题匹配的模式`n   - 【相等】: 只有窗口标题和指定的标题完全一致，才会触发自动切换`n   - 【正则】: 使用正则表达式匹配标题，匹配成功则触发自动切换`n`n5. 规则列表 —— 匹配标题`n   - 只有当匹配范围为【标题级】时，才会生效`n   - 指定一个标题或者正则表达式`n   - 它会根据匹配模式进行匹配，匹配成功则触发自动切换`n   - 如果不知道当前窗口的相关信息(进程/标题等)，可以通过以下方式获取`n      - 【托盘菜单】=>【获取当前窗口相关进程信息】`n`n6. 规则列表 —— 创建时间`n   - 它是每条规则的创建时间`n`n7. 规则列表 —— 操作`n   - 双击列表中的任意一行，进行编辑或删除`n`n8. 按钮 —— 快捷添加`n   - 点击它，可以添加一条新的规则`n   - 它会弹出一个新的菜单页面，会显示当前正在运行的【应用进程列表】`n   - 你可以双击【应用进程列表】中的任意一行进行快速添加`n   - 详细的使用说明请参考弹出的菜单页面中的【关于】`n`n9. 按钮 —— 手动添加`n   - 点击它，可以添加一条新的规则`n   - 它会直接弹出添加窗口，你需要手动填写进程名称、标题等信息`n`n10. 自动切换生效需要满足的前提条件`n   - 前提条件: `n       - 当 InputTip 执行自动切换时，此时的输入法可以正常切换状态`n       - 大写锁定除外，因为它是通过模拟输入【CapsLock】按键实现，不受其他影响`n`n   - 以【微软输入法】为例`n   - 和常规输入法不同，只有当聚焦到输入框时，它才能正常切换输入法状态`n   - 但是，当 InputTip 执行自动切换时，可能并没有聚焦到输入框，自动切换就会失效`n`n   - 再以【美式键盘 ENG】为例`n   - 它只有英文状态和大写锁定，所以只有英文状态的和大写锁定的自动切换有效")
+            g.AddEdit("ReadOnly VScroll r12 w" w, "1. 简要说明`n   - 这个菜单用来设置【指定窗口自动切换状态】的匹配规则`n   - 上方是三个 Tab 标签页: 【中文状态】【英文状态】【大写锁定】`n   - 下方是对应的规则列表`n   - 双击列表中的任意一行，进行编辑或删除`n   - 如果需要添加，请查看下方按钮相关的使用说明`n`n2. 规则列表 —— 进程名称`n   - 应用窗口实际的进程名称`n`n3. 规则列表 —— 匹配范围`n   - 【进程级】或【标题级】，它控制自动切换的时机`n   - 【进程级】: 只有从一个进程切换到另一个进程时，才会触发`n   - 【标题级】: 只要窗口标题发生变化，且匹配成功，就会触发`n`n4. 规则列表 —— 匹配模式`n   - 只有当匹配范围为【标题级】时，才会生效`n   - 【相等】或【正则】，它控制标题匹配的模式`n   - 【相等】: 只有窗口标题和指定的标题完全一致，才会触发自动切换`n   - 【正则】: 使用正则表达式匹配标题，匹配成功则触发自动切换`n`n5. 规则列表 —— 匹配标题`n   - 只有当匹配范围为【标题级】时，才会生效`n   - 指定一个标题或者正则表达式，与【匹配模式】相对应，匹配成功则触发自动切换`n   - 如果不知道当前窗口的相关信息(进程/标题等)，可以通过以下方式获取`n      - 【托盘菜单】=>【获取当前窗口相关进程信息】`n`n6. 规则列表 —— 创建时间`n   - 它是每条规则的创建时间`n`n7. 规则列表 —— 操作`n   - 双击列表中的任意一行，进行编辑或删除`n`n8. 按钮 —— 快捷添加`n   - 点击它，可以添加一条新的规则`n   - 它会弹出一个新的菜单页面，会显示当前正在运行的【应用进程列表】`n   - 你可以双击【应用进程列表】中的任意一行进行快速添加`n   - 详细的使用说明请参考弹出的菜单页面中的【关于】`n`n9. 按钮 —— 手动添加`n   - 点击它，可以添加一条新的规则`n   - 它会直接弹出添加窗口，你需要手动填写进程名称、标题等信息`n`n10. 自动切换生效需要满足的前提条件`n   - 前提条件: `n       - 当 InputTip 执行自动切换时，此时的输入法可以正常切换状态`n       - 大写锁定除外，因为它是通过模拟输入【CapsLock】按键实现，不受其他影响`n`n   - 以【微软输入法】为例`n   - 和常规输入法不同，只有当聚焦到输入框时，它才能正常切换输入法状态`n   - 但是，当 InputTip 执行自动切换时，可能并没有聚焦到输入框，自动切换就会失效`n`n   - 再以【美式键盘 ENG】为例`n   - 它只有英文状态和大写锁定，所以只有英文状态的和大写锁定的自动切换有效")
             g.AddLink(, '相关链接: <a href="https://inputtip.abgox.com/FAQ/switch-state">关于指定窗口自动切换状态</a>')
 
             g.OnEvent("Close", fn_close)
