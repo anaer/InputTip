@@ -7,16 +7,14 @@
 ;@Ahk2Exe-SetOrigFilename InputTip.JAB.JetBrains.ahk
 ;@AHK2Exe-SetDescription InputTip.JAB - 一个输入法状态管理工具(提示/切换)
 
-#Include utils/IME.ahk
+isJAB := 1
+
+#Include utils/tools.ahk
+#Include utils/create-gui.ahk
 #Include utils/ini.ahk
+#Include utils/IME.ahk
 #Include utils/app-list.ahk
 #Include utils/var.ahk
-#Include utils/tools.ahk
-
-ID := "JAB"
-
-; g.SetFont(fontOpt*)
-fontOpt := ["s" readIni("gui_font_size", "12"), "Microsoft YaHei"]
 
 /**
  * 跳过非 JAB/JetBrains IDE 程序，交由 InputTip 处理
@@ -34,25 +32,28 @@ returnCanShowSymbol(&left, &top, &right, &bottom) {
         left := 0, top := 0, right := 0, bottom := 0
         return 0
     }
-    try {
-        s := isWhichScreen(screenList)
-        if (s.num) {
+
+    s := isWhichScreen(screenList)
+    if (s.num) {
+        try {
+            offset := app_offset_screen.%s.num%
+            left += offset.x
+            top += offset.y
+        }
+        try {
+            offset := app_offset.%exe_name exe_title%.%s.num%
+            left += offset.x
+            top += offset.y
+        } catch {
             try {
-                offset := app_offset_screen.%s.num%
-                left += offset.x
-                top += offset.y
-            }
-            try {
-                offset := app_offset.%exe_name exe_title%.%s.num%
-                left += offset.x
-                top += offset.y
-            } catch {
                 left += app_offset.%exe_name%.%s.num%.x
                 top += app_offset.%exe_name%.%s.num%.y
             }
         }
+        return left
     }
-    return left
+
+    return 0
 }
 
 /**

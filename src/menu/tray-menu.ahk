@@ -22,7 +22,7 @@ makeTrayMenu() {
         A_TrayMenu.Check("开机自启动")
     }
     A_TrayMenu.Add("设置更新检查", fn_check_update)
-    A_TrayMenu.Add("更改用户信息", e_update_user)
+    A_TrayMenu.Add("设置用户信息", e_update_user)
     e_update_user(*) {
         fn_update_user(userName)
     }
@@ -37,7 +37,7 @@ makeTrayMenu() {
             } else {
                 createTipGui([{
                     opt: "cRed",
-                    text: "管理员权限无法直接降权至当前用户权限",
+                    text: "【管理员权限】无法直接降权至【用户权限】",
                 }, {
                     opt: "cRed",
                     text: "如果想要立即生效，你需要手动退出并重新启动 InputTip"
@@ -72,7 +72,7 @@ makeTrayMenu() {
             tip: "暂停/运行"
         }], "软件暂停/运行")
     }
-    A_TrayMenu.Add("打开软件所在目录", fn_open_dir)
+    A_TrayMenu.Add("打开软件运行目录", fn_open_dir)
     fn_open_dir(*) {
         Run("explorer.exe /select," A_ScriptFullPath)
     }
@@ -110,7 +110,7 @@ makeTrayMenu() {
             w := info.w
             bw := w - g.MarginX * 2
 
-            createGuiOpt().AddText(, " ").GetPos(, , &__w)
+            createGuiOpt("").AddText(, " ").GetPos(, , &__w)
             gc._window_info := g.AddButton("xs w" bw, "点击获取")
             gc._window_info.OnEvent("Click", e_window_info)
             g.AddText("xs cRed", "名称: ").GetPos(, , &_w)
@@ -192,21 +192,32 @@ fn_update_user(uname, *) {
     global userName := uname
     createUniqueGui(updateUserGui).Show()
     updateUserGui(info) {
-        g := createGuiOpt("InputTip - 更改用户信息")
-        g.AddText("cRed", "- 如果是普通用户，确保用户名正确即可`n- 如果是域用户，在用户名中需要添加域`n   - 如: xxx\abgox")
-        g.AddText(, "用户名: ")
-        _ := g.AddEdit("yp")
+        g := createGuiOpt("InputTip - 设置用户信息")
+        tab := g.AddTab3("-Wrap", ["设置用户信息", "关于"])
+        tab.UseTab(1)
+        g.AddText("Section cRed", gui_help_tip)
+
         if (info.i) {
             return g
         }
+        w := info.w
+        bw := w - g.MarginX * 2
 
-        g.AddText("xs ReadOnly cGray", "设置完成后，直接关闭这个窗口即可").Focus()
+        g.AddText(, "-------------------------------------------------------------------------")
+
+        g.AddText(, "当前的用户名: ")
+        _ := g.AddEdit("yp")
         _._config := "userName"
         _.Value := uname
         _.OnEvent("Change", fn_change)
         fn_change(item, *) {
             global userName := item.value
         }
+
+        g.AddText("xs ReadOnly cGray", "请自行检查，确保用户名无误后，点击右上角的 × 直接关闭此窗口即可").Focus()
+
+        tab.UseTab(2)
+        g.AddEdit("ReadOnly r6 w" bw, "1. 简要说明`n   - 这个菜单用来设置用户名信息`n   - 如果是域用户，在填写时还需要添加域，参考以下格式`n      - DOMAIN\Username`n      - Username@domain.com`n   - 如果用户名信息有误，以下功能可能会失效`n      - 【开机自启动】中的 【任务计划程序】`n      - 【启用 JAB/JetBrains IDE 支持】")
 
         g.OnEvent("Close", e_close)
         e_close(*) {
@@ -333,7 +344,7 @@ fn_common(args, cb_updateVar) {
                     tipGlobal: "进程级",
                     tipRegex: "相等",
                     title: "",
-                    id: FormatTime(A_Now, "yyyy-MM-dd-HH:mm:ss") "." A_MSec,
+                    id: returnId(),
                     configName: item._config
                 }
                 fn_edit(gc.%item._LV%, 1, "add", itemValue).Show()
@@ -609,11 +620,42 @@ getFontList() {
     return list
 }
 
+pauseApp(*) {
+    if (A_IsPaused) {
+        updateTip(!A_IsPaused)
+        A_TrayMenu.Uncheck("暂停/运行")
+        setTrayIcon(iconRunning)
+        reloadSymbol()
+        if (enableJABSupport) {
+            runJAB()
+        }
+    } else {
+        updateTip(!A_IsPaused)
+        A_TrayMenu.Check("暂停/运行")
+        setTrayIcon(iconPaused)
+        hideSymbol()
+        if (enableJABSupport) {
+            killJAB(0)
+        }
+    }
+    Pause(-1)
+
+    for state in ["CN", "EN", "Caps"] {
+        if (%"hotkey_" state%) {
+            try {
+                Hotkey(%"hotkey_" state%, "Toggle")
+            }
+        }
+    }
+}
+
 /**
  * 启动 JAB 进程
  * @returns {1 | 0} 1/0: 是否存在错误
  */
 runJAB() {
+    if isJAB
+        return
     if (A_IsCompiled) {
         try {
             if (compareVersion(currentVersion, FileGetVersion("InputTip.JAB.JetBrains.exe")) != 0) {
@@ -643,24 +685,33 @@ runJAB() {
     }
     return 0
 }
-/**
- * 停止 JAB 进程
- * @param {1 | 0} wait 等待停止进程
- * @param {1 | 0} delete 停止进程后，是否需要删除相关任务计划程序
- */
-killJAB(wait := 1, delete := 0) {
-    if (A_IsAdmin) {
-        cmd := 'schtasks /End /tn "abgox.InputTip.JAB.JetBrains"'
+
+
+; 显示实时的状态码和切换码
+showCode(*) {
+    if (gc.timer) {
+        gc.timer := 0
         try {
-            wait ? RunWait(cmd, , "Hide") : Run(cmd, , "Hide")
+            gc.status_btn.Text := "显示实时的状态码和切换码(双击设置快捷键)"
         }
-        if (delete) {
-            try {
-                Run('schtasks /delete /tn "abgox.InputTip.JAB.JetBrains" /f', , "Hide")
-            }
+        return
+    }
+
+    gc.timer := 1
+    try {
+        gc.status_btn.Text := "停止显示实时的状态码和切换码(双击设置快捷键)"
+    }
+
+    SetTimer(statusTimer, 25)
+    statusTimer() {
+        if (!gc.timer) {
+            ToolTip()
+            SetTimer(, 0)
+            return
         }
-    } else {
-        ProcessClose(JAB_PID)
+
+        info := IME.CheckInputMode()
+        ToolTip("状态码: " info.statusMode "`n切换码: " info.conversionMode)
     }
 }
 
@@ -711,7 +762,7 @@ createProcessListGui(args, cb_addClick, cb_addManual := "") {
                     windowInfo := {
                         exe_name: LV.GetText(RowNumber, 1),
                         title: LV.GetText(RowNumber, 3),
-                        id: FormatTime(A_Now, "yyyy-MM-dd-HH:mm:ss") "." A_MSec
+                        id: returnId()
                     }
                     cb_addClick({
                         windowInfo: windowInfo,
@@ -763,7 +814,7 @@ createProcessListGui(args, cb_addClick, cb_addManual := "") {
                 ;     windowInfo := {
                 ;         exe_name: "",
                 ;         title: "",
-                ;         id: FormatTime(A_Now, "yyyy-MM-dd-HH:mm:ss") "." A_MSec
+                ;         id: returnId()
                 ;     }
                 ;     cb_addManual({
                 ;         windowInfo: windowInfo,

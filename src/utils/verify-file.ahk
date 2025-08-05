@@ -167,14 +167,14 @@ if (A_IsCompiled) {
     }
 } else {
     if (!FileExist("../InputTip.bat")) {
-        FileAppend('REM InputTip.bat' "`n" 'start "" /min "%~dp0\src\AutoHotkey\AutoHotkey64.exe" "%~dp0\src\InputTip.ahk"`n', "..\InputTip.bat", "`n UTF-8-Raw")
+        FileAppend('REM InputTip.bat' "`n" 'start "InputTip" /min "%~dp0\src\AutoHotkey\AutoHotkey64.exe" "%~dp0\src\InputTip.ahk"`n', "..\InputTip.bat", "`n UTF-8-Raw")
     }
 
     if (!FileExist("plugins/InputTip.plugin.ahk")) {
         if (!DirExist("plugins")) {
             DirCreate("plugins")
         }
-        FileAppend("/*`n`n- 你可以在这里自定义想要的功能，例如:`n    - 自定义快捷键`n    - 自定义热字串`n    - ...`n`n- 你也可以在 plugins 目录中新建一个或多个 .ahk 文件，然后在此文件中引入，例如:`n    - 在 plugins 目录中新建一个文件名为 custom.ahk 的文件`n    - 将自定义功能写入 custom.ahk 文件中`n    - 在 InputTip.plugin.ahk 文件中引入 custom.ahk 文件: #Include custom.ahk`n`n- 需要注意: 不能存在死循环`n`n- 详情参考:`n    - Github: https://github.com/abgox/InputTip#自定义功能`n    - Gitee: https://gitee.com/abgox/InputTip#自定义功能`n`n*/`n", "plugins/InputTip.plugin.ahk", "UTF-8")
+        FileAppend("/*`n`n- 你可以在这里自定义想要的功能，例如:`n    - 自定义快捷键`n    - 自定义热字串`n    - ...`n`n- 你也可以在 plugins 目录中新建一个或多个 .ahk 文件，然后在此文件中引入，例如:`n    - 在 plugins 目录中新建一个文件名为 custom.ahk 的文件`n    - 将自定义功能写入 custom.ahk 文件中`n    - 在 InputTip.plugin.ahk 文件中引入 custom.ahk 文件: #Include custom.ahk`n`n- 需要注意: 不能存在死循环`n`n- 详情参考:`n    - 官方文档: https://inputtip.abgox.com/FAQ/plugin`n    - Github: https://github.com/abgox/InputTip#自定义功能`n    - Gitee: https://gitee.com/abgox/InputTip#自定义功能`n`n*/`n", "plugins/InputTip.plugin.ahk", "UTF-8")
     }
 
     ; 丢失的文件列表
@@ -206,9 +206,7 @@ if (A_IsCompiled) {
         }
     }
     if (missFileList.Length) {
-        fontOpt := ["s" readIni("gui_font_size", "12"), "Microsoft YaHei"]
         downloading(*) {
-
             g := createGuiOpt("InputTip - 正在处理文件丢失...")
             g.AddText(, "正在下载丢失的文件: ")
             g.tip := g.AddText("xs cRed", "------------------------------------------------------------")
@@ -250,25 +248,13 @@ if (A_IsCompiled) {
         downloadingGui.Destroy()
 
         if (!done) {
-            createGui(errGui).Show()
-            errGui(info) {
-                g := createGuiOpt("InputTip - 正在处理文件丢失...")
-                g.AddText("cRed", "可能因为网络等其他原因，文件没有正常恢复，请手动处理")
-                g.AddLink("cGray", '你可以前往 <a href="https://inputtip.abgox.com">官网</a>   <a href="https://github.com/abgox/InputTip">Github</a>   <a href="https://gitee.com/abgox/InputTip">Github</a> 手动下载')
-                if (info.i) {
-                    return g
-                }
-                w := info.w
-                bw := w - g.MarginX * 2
-
-                y := g.AddButton("xs w" bw, "我知道了")
-                y.OnEvent("Click", yes)
-                g.OnEvent("Close", yes)
-                yes(*) {
-                    g.Destroy()
-                }
-                return g
-            }
+            createTipGui([{
+                opt: "cRed",
+                text: "可能因为网络等其他原因，文件没有正常恢复，请手动处理",
+            }, {
+                opt: "cGray",
+                text: '你可以前往 <a href="https://inputtip.abgox.com">官网</a>   <a href="https://github.com/abgox/InputTip">Github</a>   <a href="https://gitee.com/abgox/InputTip">Github</a> 手动下载'
+            }], "InputTip - 正在处理文件丢失...").Show()
         }
     }
 }
@@ -299,25 +285,22 @@ ensureFile(urlPath, filePath) {
 
 /**
  * - 检查配置文件
- * - 当配置文件不存在(无法读取 mode 配置项)时，进入初始化引导
+ * - 当配置文件不存在(无法读取 Installer 中的 init 配置项)时，进入初始化引导
  */
 checkIni() {
     try {
-        mode := IniRead("InputTip.ini", "InputMethod", "mode")
+        IniRead("InputTip.ini", "Installer", "init")
     } catch {
         gc.init := 1
 
-        userName := readIni("userName", A_UserName, "UserInfo")
-
-        ; 输入法模式
-        mode := readIni("mode", 1, "InputMethod")
+        writeIni("init", 1, "Installer")
 
         fz := "s14"
         createGui(confirmGui).Show()
         confirmGui(info) {
             g := Gui(, "InputTip - 初始化引导")
             g.SetFont(fz, "Microsoft YaHei")
-            g.AddText(, "你是否希望 InputTip 修改鼠标样式?")
+            g.AddText(, "你是否希望 InputTip 加载鼠标样式?")
             g.AddText("xs cRed", "InputTip 会使用三套不同颜色的鼠标样式`n然后根据不同输入法状态加载对应的鼠标样式")
             g.AddLink(, '详情参考【鼠标样式方案】:  <a href="https://inputtip.abgox.com/v2/#鼠标样式方案">官网</a>   <a href="https://github.com/abgox/InputTip#鼠标样式方案">Github</a>   <a href="https://gitee.com/abgox/InputTip#鼠标样式方案">Gitee</a>')
 
@@ -327,15 +310,15 @@ checkIni() {
             w := info.w
             bw := w - g.MarginX * 2
 
-            g.AddButton("xs cRed w" bw, "【是】修改鼠标样式").OnEvent("Click", e_yes)
+            g.AddButton("xs cRed w" bw, "【是】加载鼠标样式").OnEvent("Click", e_yes)
             e_yes(*) {
                 g.Destroy()
                 createGui(yesGui).Show()
                 yesGui(info) {
                     g := Gui()
                     g.SetFont(fz, "Microsoft YaHei")
-                    g.AddText(, "你真的确定要修改鼠标样式吗？")
-                    g.AddText("cRed", "请谨慎选择，如果误点了确定，恢复鼠标样式需要以下步骤: `n  1. 点击【托盘菜单】=>【更改配置】`n  2. 将【1. 是否同步修改鼠标样式】的值更改为【否】")
+                    g.AddText(, "你真的确定要加载鼠标样式吗？")
+                    g.AddText("cRed", "请谨慎选择，如果误点了确定，恢复鼠标样式需要以下步骤: `n  1. 点击【托盘菜单】中的【更改配置】`n  2. 将【显示形式】页面中的【加载鼠标样式】的值更改为【否】")
 
                     if (info.i) {
                         return g
@@ -371,7 +354,7 @@ checkIni() {
             g.OnEvent("Close", e_exit)
             e_exit(*) {
                 try {
-                    IniDelete("InputTip.ini", "InputMethod", "mode")
+                    IniDelete("InputTip.ini", "Installer", "init")
                 }
                 ExitApp()
             }
@@ -409,7 +392,7 @@ checkIni() {
                 g.OnEvent("Close", e_exit)
                 e_exit(*) {
                     try {
-                        IniDelete("InputTip.ini", "InputMethod", "mode")
+                        IniDelete("InputTip.ini", "Installer", "init")
                     }
                     ExitApp()
                 }

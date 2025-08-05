@@ -1,42 +1,15 @@
 ; InputTip
 
 /**
- * 比对版本号
- * @param new 新版本号
- * @param old 旧版本号
- * @returns {1 | -1 | 0}
- * - new > old : 1
- * - new < old : -1
- * - new = old : 0
- */
-compareVersion(new, old) {
-    newParts := StrSplit(new, ".")
-    oldParts := StrSplit(old, ".")
-    for i, part1 in newParts {
-        try {
-            part2 := oldParts[i]
-        } catch {
-            part2 := 0
-        }
-        if (part1 > part2) {
-            return 1  ; new > old
-        } else if (part1 < part2) {
-            return -1  ; new < old
-        }
-    }
-    return 0  ; new = old
-}
-
-/**
  * 检查版本更新(异步)
  * @param currentVersion 当前版本号
  * @param callback 版本检查完成后的回调函数
  * @param urls 版本检查 URL 列表
  */
 checkVersion(currentVersion, callback, urls := [
-    "https://inputtip.abgox.com/releases/v2/version.txt",
-    "https://github.com/abgox/InputTip/raw/main/src/version.txt",
     "https://gitee.com/abgox/InputTip/raw/main/src/version.txt",
+    "https://inputtip.abgox.com/releases/v2/version.txt",
+    "https://github.com/abgox/InputTip/raw/main/src/version.txt"
 ]) {
     currentVersion := StrReplace(currentVersion, "v", "")
     check(1)
@@ -571,12 +544,15 @@ checkUpdateDone() {
     flagFile := A_AppData "/.abgox-InputTip-update-version-done.txt"
     flagFile2 := A_ScriptDir "/InputTipSymbol/default/abgox-InputTip-update-version-done.txt"
     if (compareVersion(currentVersion, oldVersion) > 0 || FileExist(flagFile) || FileExist(flagFile2)) {
+
+        writeIni("init", 1, "Installer")
+
         for v in ["CN", "EN", "Caps"] {
             try {
                 _ := StrSplit(IniRead("InputTip.ini", "Config-v2", "app_" v), ":")
                 for value in _ {
                     if (Trim(value)) {
-                        id := FormatTime(A_Now, "yyyy-MM-dd-HH:mm:ss") "." A_MSec
+                        id := returnId()
                         IniWrite(value ":1", "InputTip.ini", "App-" v, id)
                         Sleep(5)
                     }
@@ -601,7 +577,7 @@ checkUpdateDone() {
                 _ := StrSplit(IniRead("InputTip.ini", "Config-v2", v.old), ":")
                 for value in _ {
                     if (Trim(value)) {
-                        id := FormatTime(A_Now, "yyyy-MM-dd-HH:mm:ss") "." A_MSec
+                        id := returnId()
                         IniWrite(value ":1", "InputTip.ini", v.new, id)
                         Sleep(5)
                     }
@@ -616,7 +592,7 @@ checkUpdateDone() {
             try {
                 for value in StrSplit(IniRead("InputTip.ini", "Config-v2", "app_offset"), ":") {
                     if (Trim(value)) {
-                        id := FormatTime(A_Now, "yyyy-MM-dd-HH:mm:ss") "." A_MSec
+                        id := returnId()
                         IniWrite(StrReplace(StrReplace(value, "|", ":1:0:"), "*", "|") ":", "InputTip.ini", "App-Offset", id)
                         Sleep(5)
                     }
@@ -629,7 +605,7 @@ checkUpdateDone() {
                 _ := StrSplit(IniRead("InputTip.ini", "Config-v2", "cursor_mode_" v), ":")
                 for value in _ {
                     if (Trim(value)) {
-                        id := FormatTime(A_Now, "yyyy-MM-dd-HH:mm:ss") "." A_MSec
+                        id := returnId()
                         IniWrite(value ":" v, "InputTip.ini", "InputCursorMode", id)
                         Sleep(5)
                     }

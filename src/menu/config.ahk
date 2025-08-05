@@ -30,8 +30,8 @@ fn_config(*) {
 
         g.AddText("xs cGray", "- 如果是首次打开配置菜单，建议点击上方的【其他杂项】，把配置菜单的字体调整到合适的大小")
         g.AddText("xs", line)
-        g.AddText("xs", "1. 是否同步修改鼠标样式: ")
-        _ := g.AddDropDownList("w" bw / 2 " yp AltSubmit Choose" changeCursor + 1, ["【否】不要修改鼠标样式，保持原本的鼠标样式", "【是】需要修改鼠标样式，随输入法状态而变化"])
+        g.AddText("xs", "1. 加载鼠标样式:")
+        _ := g.AddDropDownList("w" bw / 3 " yp AltSubmit Choose" changeCursor + 1, ["【否】保持原本的鼠标样式", "【是】随输入法状态而变化"])
         g.AddText("xs cGray", "推荐设置为【是】，它与符号一起搭配使用才是更完美的输入法状态提示方案")
         _.OnEvent("Change", e_change_cursor)
         e_change_cursor(item, *) {
@@ -81,7 +81,7 @@ fn_config(*) {
             }
             restartJAB()
         }
-        g.addText("xs", "2. 显示什么类型的符号: ")
+        g.addText("xs", "2. 指定符号类型:")
         g.AddDropDownList("yp AltSubmit Choose" symbolType + 1 " w" bw / 3, [" 【不】显示符号", " 显示【图片】符号", " 显示【方块】符号", " 显示【文本】符号"]).OnEvent("Change", e_symbol_type)
         e_symbol_type(item, *) {
             writeIni("symbolType", item.value - 1)
@@ -117,15 +117,18 @@ fn_config(*) {
             reloadSymbol()
             gc._focusSymbol.Focus()
         }
-        g.AddLink("xs cGray", '输入光标附近显示的符号的垂直偏移量会基于这个参考原点进行偏移。`nJAB/JetBrains IDE 程序中它是无效的，只能使用【设置特殊偏移量】特殊处理。<a href="https://inputtip.abgox.com/FAQ/symbol-pos-base">点击查看详细说明</a>')
-        g.AddText("xs", "4. 无键盘和鼠标左键点击操作时，符号在多少")
-        g.AddText("yp cRed", "毫秒")
-        g.AddText("yp", "后隐藏:")
-        _ := g.AddEdit("yp Number")
+        g.AddLink("xs cGray", '输入光标附近显示的符号的垂直偏移量会基于这个参考原点进行偏移，会影响相关的偏移量设置`nJAB/JetBrains IDE 程序中它是无效的，只能使用【设置特殊偏移量】特殊处理。<a href="https://inputtip.abgox.com/FAQ/symbol-pos-base">点击查看详细说明</a>')
+        g.AddText("xs", "4. 符号延时隐藏:")
+        _ := g.AddEdit("yp Number w" bw / 3)
         _.Value := hideSymbolDelay
         _.OnEvent("Change", e_hideSymbolDelay)
-        _.OnEvent("LoseFocus", e_hideSymbolDelay)
         e_hideSymbolDelay(item, *) {
+            static db := debounce((config, value) => (
+                updateDelay(),
+                writeIni(config, value),
+                restartJAB()
+            ))
+
             value := item.value
             if (value = "") {
                 return
@@ -134,41 +137,35 @@ fn_config(*) {
                 value := 150
             }
             global hideSymbolDelay := value
-            updateDelay()
-            if (item.Focused) {
-                return
-            }
-            writeIni("hideSymbolDelay", value)
-            restartJAB()
+
+            db("hideSymbolDelay", value)
         }
-        g.AddText("xs cGray w" bw, "单位: 毫秒，默认为 0 毫秒，表示不隐藏符号。不为 0 时，它不能小于 150，建议 500 以上`n当符号隐藏后，下次键盘操作或点击鼠标左键时会再次显示")
-        g.AddText("xs", "5. 每多少")
-        g.AddText("yp cRed", "毫秒")
-        g.AddText("yp", "后更新符号的显示位置和状态:")
-        _ := g.AddEdit("yp Number Limit3")
+        g.AddText("xs cGray w" bw, "它表示无键盘和鼠标左键点击操作时，符号在多久后隐藏`n单位: 毫秒，默认为 0，表示不隐藏符号。不为 0 时，它不能小于 150，建议 500 以上`n当符号隐藏后，下次键盘操作或点击鼠标左键时会再次显示")
+        g.AddText("xs", "5. 轮询响应间隔:")
+        _ := g.AddEdit("yp Number Limit2 w" bw / 3)
         _.Value := delay
         _.OnEvent("Change", e_delay)
-        _.OnEvent("LoseFocus", e_delay)
         e_delay(item, *) {
+            static db := debounce((config, value) => (
+                writeIni(config, value),
+                restartJAB()
+            ))
+
             value := item.value
             if (value = "") {
                 return
             }
             value += value <= 0
-            if (value > 500) {
-                value := 500
+            if (value > 100) {
+                value := 100
             }
             global delay := value
-            if (item.Focused) {
-                return
-            }
 
-            writeIni("delay", value)
-            restartJAB()
+            db("delay", value)
         }
 
         ; g.AddUpDown("Range1-500", delay)
-        g.AddText("xs cGray w" bw, "单位：毫秒，默认为 20 毫秒，建议 20-50 之间。最大范围是 1-500，超出范围则使用最近的有效值`n值越小，响应越快，性能消耗会稍微大一点(影响不大)，根据电脑性能适当调整")
+        g.AddText("xs cGray w" bw, "它表示更新符号的位置、状态、输入法状态、切换状态等的响应间隔时间，单位：毫秒，默认为 20`n值越小，响应越快，性能消耗会稍微大一点(影响不大)，根据电脑性能适当调整")
 
         tab.UseTab(2)
         g.AddText("Section", "- 你应该首先查看")
@@ -178,7 +175,7 @@ fn_config(*) {
         g.AddText("xs cGray", "- 更推荐去下载已经适配好的鼠标样式，通过点击右下角的【下载鼠标样式扩展包】")
         g.AddText("xs", line)
         g.AddText("cRed", "如果下方的 3 个下拉列表中显示的鼠标样式文件夹路径不是最新的，请点击下方的【刷新路径列表】")
-        g.AddText("xs cGray", "如果【显示形式】页面中的第 1 个配置【是否同步修改鼠标样式】选择了【是】")
+        g.AddText("xs cGray", "如果【显示形式】页面中的配置【加载鼠标样式】选择了【是】")
         g.AddText("xs cGray", "InputTip 就会使用下方选择的鼠标样式文件夹中的鼠标样式文件，根据不同输入法状态加载对应的鼠标样式")
         g.AddText("Section", "选择鼠标样式文件夹路径:")
         dirList := StrSplit(cursorDir, ":")
@@ -261,17 +258,18 @@ fn_config(*) {
             _._config := v.config
             _.Value := symbolConfig.%v.config%
             _.OnEvent("Change", e_pic_config)
-            _.OnEvent("LoseFocus", e_pic_config)
         }
         e_pic_config(item, *) {
+            static db := debounce((config, value) => (
+                writeIni(config, value),
+                restartJAB()
+            ))
+
             value := returnNumber(item.value)
-            updateSymbol(1, item._config, value)
+            updateSymbol(item._config, value)
             reloadSymbol()
-            if (item.Focused) {
-                return
-            }
-            writeIni(item._config, value)
-            restartJAB()
+
+            db(item._config, value)
         }
 
         fn_setIsolateConfig(item, *) {
@@ -280,15 +278,17 @@ fn_config(*) {
             reloadSymbol()
         }
         fn_writeIsolateConfig(item, *) {
+            static db := debounce((config, value) => (
+                writeIni(config, value),
+                restartJAB()
+            ))
+
             value := RegExMatch(item._config, "color|font|Text") ? item.Text : returnNumber(item.Text)
             if (item._update) {
-                updateSymbol(1, item._config, value)
+                updateSymbol(item._config, value)
                 reloadSymbol()
-                if (item.Focused) {
-                    return
-                }
-                writeIni(item._config, value)
-                restartJAB()
+
+                db(item._config, value)
             }
         }
 
@@ -348,7 +348,6 @@ fn_config(*) {
                         _g._config := config
                         _g._update := symbolType = 1 && symbolConfig.enableIsolateConfigPic
                         _g.OnEvent("Change", fn_writeIsolateConfig)
-                        _g.OnEvent("LoseFocus", fn_writeIsolateConfig)
                     }
                 }
                 g.AddText()
@@ -463,16 +462,18 @@ fn_config(*) {
             _._config := v.config
             _.Text := symbolConfig.%v.config%
             _.OnEvent("Change", e_color_config)
-            _.OnEvent("LoseFocus", e_color_config)
         }
         e_color_config(item, *) {
+            static db := debounce((config, value) => (
+                writeIni(config, value),
+                restartJAB()
+            ))
+
             value := item.Text
-            updateSymbol(1, item._config, value)
+            updateSymbol(item._config, value)
             reloadSymbol()
-            if (item.Focused) {
-                return
-            }
-            writeIni(item._config, value)
+
+            db(item._config, value)
         }
         for v in symbolBlockConfig {
             g.AddText("xs", v.tip ": ")
@@ -480,9 +481,13 @@ fn_config(*) {
             _._config := v.config
             _.Value := symbolConfig.%v.config%
             _.OnEvent("Change", e_block_config)
-            _.OnEvent("LoseFocus", e_block_config)
         }
         e_block_config(item, *) {
+            static db := debounce((config, value) => (
+                writeIni(config, value),
+                restartJAB()
+            ))
+
             value := returnNumber(item.value)
             if (item._config = "transparent") {
                 if (value = "") {
@@ -492,12 +497,10 @@ fn_config(*) {
                     value := 255
                 }
             }
-            updateSymbol(1, item._config, value)
+            updateSymbol(item._config, value)
             reloadSymbol()
-            if (item.Focused) {
-                return
-            }
-            writeIni(item._config, value)
+
+            db(item._config, value)
         }
 
         fn_border_config(item, *) {
@@ -585,7 +588,6 @@ fn_config(*) {
                     _g._config := config
                     _g._update := symbolType = 2 && symbolConfig.enableIsolateConfigBlock
                     _g.OnEvent("Change", fn_writeIsolateConfig)
-                    _g.OnEvent("LoseFocus", fn_writeIsolateConfig)
 
                     for v in configList {
                         config := v.config state
@@ -595,7 +597,6 @@ fn_config(*) {
                         _g._config := config
                         _g._update := symbolType = 2 && symbolConfig.enableIsolateConfigBlock
                         _g.OnEvent("Change", fn_writeIsolateConfig)
-                        _g.OnEvent("LoseFocus", fn_writeIsolateConfig)
                     }
                     config := "border_type" state
                     g.AddText("xs", "边框样式: ")
@@ -603,7 +604,6 @@ fn_config(*) {
                     _.Value := symbolConfig.%config% +1
                     _._config := config
                     _.OnEvent("Change", fn_border_config)
-                    _.OnEvent("LoseFocus", fn_border_config)
                     g.AddText("yp w20")
                     _._focus := g.AddEdit("yp w1")
                     _._focus.OnEvent("Focus", fn_clear)
@@ -696,9 +696,13 @@ fn_config(*) {
             _._config := v.config
             _.Text := symbolConfig.%v.config%
             _.OnEvent("Change", e_text_config)
-            _.OnEvent("LoseFocus", e_text_config)
         }
         e_text_config(item, *) {
+            static db := debounce((config, value) => (
+                writeIni(config, value),
+                restartJAB()
+            ))
+
             value := item.Text
             if (item._config = "textSymbol_transparent") {
                 if (value = "") {
@@ -710,12 +714,10 @@ fn_config(*) {
             } else if (item._config = "textSymbol_offset_x" || item._config = "textSymbol_offset_y") {
                 value := returnNumber(value)
             }
-            updateSymbol(1, item._config, value)
+            updateSymbol(item._config, value)
             reloadSymbol()
-            if (item.Focused) {
-                return
-            }
-            writeIni(item._config, value)
+
+            db(item._config, value)
         }
 
         g.AddText("xs", "文本符号的边框样式: ")
@@ -804,7 +806,6 @@ fn_config(*) {
                     _g._config := config
                     _g._update := symbolType = 3 && symbolConfig.enableIsolateConfigText
                     _g.OnEvent("Change", fn_writeIsolateConfig)
-                    _g.OnEvent("LoseFocus", fn_writeIsolateConfig)
 
                     ; 背景颜色
                     config := "textSymbol_" state "_color"
@@ -814,7 +815,6 @@ fn_config(*) {
                     _g._config := config
                     _g._update := symbolType = 3 && symbolConfig.enableIsolateConfigText
                     _g.OnEvent("Change", fn_writeIsolateConfig)
-                    _g.OnEvent("LoseFocus", fn_writeIsolateConfig)
 
 
                     for v in configList {
@@ -830,7 +830,6 @@ fn_config(*) {
                         _g._config := config
                         _g._update := symbolType = 3 && symbolConfig.enableIsolateConfigText
                         _g.OnEvent("Change", fn_writeIsolateConfig)
-                        _g.OnEvent("LoseFocus", fn_writeIsolateConfig)
                     }
                     config := "textSymbol_border_type" state
                     g.AddText("xs", "边框样式: ")
@@ -838,7 +837,6 @@ fn_config(*) {
                     _.Value := symbolConfig.%config% +1
                     _._config := config
                     _.OnEvent("Change", fn_border_config)
-                    _.OnEvent("LoseFocus", fn_border_config)
                     g.AddText("yp w20")
                     _._focus := g.AddEdit("yp w1")
                     _._focus.OnEvent("Focus", fn_clear)
@@ -854,32 +852,34 @@ fn_config(*) {
         _ := g.AddEdit("yp Number Limit2")
         _.Value := readIni("gui_font_size", "12")
         _.OnEvent("Change", e_change_gui_fs)
-        _.OnEvent("LoseFocus", e_change_gui_fs)
         e_change_gui_fs(item, *) {
+            static db := debounce((config, value) => (
+                writeIni(config, value)
+            ))
+
             value := item.value
             if (value = "" || value < 5 || value > 30) {
                 return
             }
             global fontOpt := ["s" value, "Microsoft YaHei"]
-            if (item.Focused) {
-                return
-            }
-            writeIni("gui_font_size", value)
+
+            db("gui_font_size", value)
         }
-        g.AddEdit("xs ReadOnly cGray -VScroll w" bw, "取值范围: 5-30，建议 12-20 之间，超出范围则使用最近的有效值。更改后，重新打开配置菜单即可")
+        g.AddText("xs cGray", "取值范围: 5-30，建议 12-20 之间，超出范围则使用最近的有效值。更改后，重新打开配置菜单即可")
         g.AddText("Section xs", "2. 设置鼠标悬浮在【托盘菜单】上时的文字模板")
         _ := g.AddEdit("w" bw)
         _.Value := trayTipTemplate
         _.OnEvent("Change", e_trayTemplate)
-        _.OnEvent("LoseFocus", e_trayTemplate)
         e_trayTemplate(item, *) {
+            static db := debounce((config, value) => (
+                writeIni(config, value)
+            ))
+
             value := item.value
             global trayTipTemplate := value
             updateTip(A_IsPaused)
-            if (item.Focused) {
-                return
-            }
-            writeIni("trayTipTemplate", value)
+
+            db("trayTipTemplate", value)
         }
         g.AddEdit("xs ReadOnly cGray -VScroll w" bw, '模板变量: %\n% 表示换行，%appState% 会替换为软件运行状态(运行/暂停)')
 
@@ -893,20 +893,20 @@ fn_config(*) {
             writeIni("enableKeyCount", value)
             updateTip()
         }
-        g.AddEdit("xs ReadOnly cGray -VScroll w" bw, "开启后，鼠标悬浮在【托盘菜单】上时，会额外显示按键次数统计相关文本`n只有当上一次按键和当前按键不同时，才会记为一次有效按键")
+        g.AddText("xs cGray", "开启后，鼠标悬浮在【托盘菜单】上时，会额外显示按键次数统计相关文本`n只有当上一次按键和当前按键不同时，才会记为一次有效按键")
         g.AddText("Section xs", "4. 设置按键次数统计的文字模板")
         _ := g.AddEdit("w" bw)
         _.Value := keyCountTemplate
         _.OnEvent("Change", e_countTemplate)
-        _.OnEvent("LoseFocus", e_countTemplate)
         e_countTemplate(item, *) {
+            static db := debounce((config, value) => (
+                writeIni(config, value)
+            ))
             value := item.value
             global keyCountTemplate := value
             updateTip(A_IsPaused)
-            if (item.Focused) {
-                return
-            }
-            writeIni("keyCountTemplate", value)
+
+            db("keyCountTemplate", value)
         }
         g.AddEdit("xs ReadOnly cGray -VScroll w" bw, '模板变量: %\n% 表示换行，%keyCount% 会替换为按键次数，%appState% 会替换为软件运行状态')
         g.AddText("Section xs", "5. 设置软件的托盘图标")

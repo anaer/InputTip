@@ -1,6 +1,23 @@
 ; InputTip
 
 /**
+ * 防抖函数
+ * @param {Func} fn 要执行的函数
+ * @param {Number} delay 延迟时间(ms)
+ * @returns {Func} 函数
+ */
+debounce(fn, delay := 1000) {
+    params := []
+    timerFunc := (*) => fn.Call(params*)
+
+    return (args*) => (
+        params := args,
+        SetTimer(timerFunc, 0),
+        SetTimer(timerFunc, -delay)
+    )
+}
+
+/**
  * 将数组转换成字符串，并用指定分隔符连接
  * @param {Array} arr 数组
  * @param {String} separator 分隔符
@@ -79,13 +96,6 @@ getScreenInfo() {
 
 /**
  * 激活的窗口在哪个屏幕
- * 
- * 调用时外层必须使用 try 包裹，因为 MouseGetPos 在极少数情况下，会因为权限问题报错拒绝访问
- * @example
- * try {
- *      isWhichScreen()
- *      ; ...
- * }
  */
 isWhichScreen(screenList) {
     try {
@@ -95,7 +105,7 @@ isWhichScreen(screenList) {
         cx := x + w / 2
         cy := y + h / 2
     } catch {
-        return ""
+        return { main: 0, count: 0, num: 0, left: 0, top: 0, right: 0, bottom: 0 }
     }
 
     for v in screenList {
@@ -114,8 +124,38 @@ returnNumber(value) {
     return numbers[1]
 }
 
+/**
+ * 比对版本号
+ * @param new 新版本号
+ * @param old 旧版本号
+ * @returns {1 | -1 | 0}
+ * - new > old : 1
+ * - new < old : -1
+ * - new = old : 0
+ */
+compareVersion(new, old) {
+    newParts := StrSplit(new, ".")
+    oldParts := StrSplit(old, ".")
+    for i, part1 in newParts {
+        try {
+            part2 := oldParts[i]
+        } catch {
+            part2 := 0
+        }
+        if (part1 > part2) {
+            return 1  ; new > old
+        } else if (part1 < part2) {
+            return -1  ; new < old
+        }
+    }
+    return 0  ; new = old
+}
+
 ; 设置托盘图标
 setTrayIcon(path) {
+    if isJAB
+        return
+
     try {
         TraySetIcon(path, , 1)
     } catch {
@@ -130,4 +170,9 @@ setTrayIcon(path) {
         }
         TraySetIcon(path, , 1)
     }
+}
+
+; 返回当前的时间，作为唯一标识符
+returnId() {
+    return FormatTime(A_Now, "yyyy-MM-dd-HH:mm:ss") "." A_MSec
 }
