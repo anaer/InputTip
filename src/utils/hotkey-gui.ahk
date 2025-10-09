@@ -7,12 +7,10 @@
  * @example
  * setHotKeyGui([{
  * config: "hotkey_Pause", ; 要写入的配置项
- * preTip: "设置快捷键", ; 快捷键功能描述前缀，可省略
  * tip: "暂停/运行" ; 快捷键功能描述
  * }], "软件暂停/运行")
  */
 setHotKeyGui(keyConfigList, label := "") {
-    line := "------------------------------------------------------------------------------------"
     createUniqueGui(hotKeyGui).Show()
     hotKeyGui(info) {
         g := createGuiOpt("InputTip - 设置快捷键" (label ? " —— " label : ""))
@@ -29,7 +27,9 @@ setHotKeyGui(keyConfigList, label := "") {
         w := info.w
         bw := w - g.MarginX * 2
 
-        g.AddLink("xs", '4.  如果要移除快捷键，请选择【无】。<a href="https://inputtip.abgox.com/FAQ/single-key-list">点击查看完整的按键名称对应表</a>`n' line)
+        line := gui_width_line "--"
+
+        g.AddLink("xs", '4.  如果要移除快捷键，请选择【无】。<a href="https://inputtip.abgox.com/faq/single-key-list">点击查看完整的按键名称对应表</a>`n' line)
 
         keyList := []
         keyList.Push(["无", "Esc", "Shift", "LShift", "RShift", "Ctrl", "LCtrl", "RCtrl", "Alt", "LAlt", "RAlt"]*)
@@ -50,14 +50,7 @@ setHotKeyGui(keyConfigList, label := "") {
         }
 
         for v in keyConfigList {
-            try {
-                g.AddText("xs", v.preTip)
-                g.AddText("yp cRed", v.tip)
-            } catch {
-                g.AddText("xs cRed", v.tip)
-            }
-
-            g.AddText("yp", ":")
+            g.AddText("xs", v.tip ":")
 
             _ := gc.%v.config% := g.AddDropDownList("yp r9", keyList)
             _._config := v.config
@@ -79,12 +72,6 @@ setHotKeyGui(keyConfigList, label := "") {
             }
         }
         e_change_hotkey(item, *) {
-            static last := ""
-            if (last = item.value) {
-                return
-            }
-            last := item.value
-
             ; 同步修改到【设置组合快捷键】和【手动输入快捷键】
             if (item.Text = "无") {
                 key := ""
@@ -103,13 +90,7 @@ setHotKeyGui(keyConfigList, label := "") {
         g.AddText("xs", "4.  通过勾选右边的 Win 键来表示快捷键中需要加入 Win 修饰键`n" line)
 
         for v in keyConfigList {
-            try {
-                g.AddText("xs", v.preTip)
-                g.AddText("yp cRed", v.tip)
-            } catch {
-                g.AddText("xs cRed", v.tip)
-            }
-            g.AddText("yp", ":")
+            g.AddText("xs", v.tip ":")
             value := readIni(v.config, '')
             _ := gc.%v.config "2"% := g.AddHotkey("yp", StrReplace(value, "#", ""))
             _._config := v.config
@@ -141,15 +122,9 @@ setHotKeyGui(keyConfigList, label := "") {
         g.AddText("xs", "2.")
         g.AddText("yp cRed", "优先使用【设置单键】或【设置组合快捷键】设置，除非因为快捷键占用无法设置")
         g.AddText("xs", '3.  这里会回显它们的设置，建议先使用它们，然后回到此处适当修改')
-        g.AddLink("xs", '4.  你需要首先查看 <a href="https://inputtip.abgox.com/FAQ/enter-shortcuts-manually">如何手动输入快捷键</a>`n' line)
+        g.AddLink("xs", '4.  你需要首先查看 <a href="https://inputtip.abgox.com/faq/enter-shortcuts-manually">如何手动输入快捷键</a>`n' line)
         for v in keyConfigList {
-            try {
-                g.AddText("xs", v.preTip)
-                g.AddText("yp cRed", v.tip)
-            } catch {
-                g.AddText("xs cRed", v.tip)
-            }
-            g.AddText("yp", ":")
+            g.AddText("xs", v.tip ":")
             _ := gc.%v.config "3"% := g.AddEdit("yp")
             _._config := v.config
             _._with := v.config "_win"

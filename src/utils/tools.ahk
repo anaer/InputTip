@@ -43,9 +43,9 @@ hasChildDir(path) {
 }
 
 /**
- * 鼠标是否悬浮在指定窗口上
+ * 鼠标是否悬停在指定窗口上
  * @param WinTitle  窗口标题
- * @returns 是否悬浮在窗口上
+ * @returns 是否悬停在窗口上
  */
 isMouseOver(WinTitle) {
     try {
@@ -95,7 +95,7 @@ getScreenInfo() {
 }
 
 /**
- * 激活的窗口在哪个屏幕
+ * 聚焦的窗口在哪个屏幕
  */
 isWhichScreen(screenList) {
     try {
@@ -115,12 +115,12 @@ isWhichScreen(screenList) {
     }
 }
 
-; 从字符串中提取出数字，可以带负号
+; 从字符串中提取出数字，支持负数和小数
 returnNumber(value) {
     if (value = "" || !(value ~= "\d")) {
         return 0
     }
-    RegExMatch(value, "(-?\d+)", &numbers)
+    RegExMatch(value, "(-?\d+\.?\d*)", &numbers)
     return numbers[1]
 }
 
@@ -152,19 +152,19 @@ compareVersion(new, old) {
 }
 
 ; 设置托盘图标
-setTrayIcon(path) {
+setTrayIcon(path, isPaused := A_IsPaused) {
     if isJAB
         return
 
     try {
         TraySetIcon(path, , 1)
     } catch {
-        if (A_IsPaused) {
-            path := "InputTipSymbol\default\favicon-pause.png"
+        if (isPaused) {
+            path := "InputTipIcon\default\app-paused.png"
             global iconPaused := path
             writeIni("iconPaused", path)
         } else {
-            path := "InputTipSymbol\default\favicon.png"
+            path := "InputTipIcon\default\app.png"
             global iconRunning := path
             writeIni("iconRunning", path)
         }
@@ -175,4 +175,20 @@ setTrayIcon(path) {
 ; 返回当前的时间，作为唯一标识符
 returnId() {
     return FormatTime(A_Now, "yyyy-MM-dd-HH:mm:ss") "." A_MSec
+}
+
+; 还原鼠标样式
+revertCursor(cursorInfo) {
+    try {
+        for v in cursorInfo {
+            if (v.origin) {
+                DllCall("SetSystemCursor", "Ptr", DllCall("LoadCursorFromFile", "Str", v.origin, "Ptr"), "Int", v.value)
+            } else {
+                ; 如果没有获取到原始的工形光标样式文件，则直接加载一个默认的样式
+                if (v.type == "IBEAM") {
+                    DllCall("SetSystemCursor", "Ptr", DllCall("LoadCursorFromFile", "Str", "C:\Windows\Cursors\beam_m.cur", "Ptr"), "Int", v.value)
+                }
+            }
+        }
+    }
 }

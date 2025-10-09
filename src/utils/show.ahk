@@ -2,9 +2,12 @@
 
 updateDelay()
 
-; 鼠标悬浮在符号上
+; 鼠标悬停在符号上
 isOverSymbol := 0
 hasWindowChange := 1
+
+lastInputState := ""
+inputStateChanged := 0
 while 1 {
     Sleep(delay)
     ; 正在使用鼠标或有键盘操作
@@ -35,8 +38,8 @@ while 1 {
                     }
                 }
 
-                ; 等待窗口完成激活，防止切换状态冲突，导致状态切换失败
-                WinWaitActive(exe_title " ahk_exe " exe_name, , 15)
+                ; 等待窗口完成聚焦，防止切换状态冲突，导致状态切换失败
+                WinWaitActive(exe_title " ahk_exe " exe_name, , 5)
 
                 lastSymbol := ""
                 lastCursor := ""
@@ -64,18 +67,27 @@ while 1 {
         }
 
         if (GetKeyState("CapsLock", "T")) {
-            loadCursor("Caps")
-            ShowSymbolEx("Caps")
-            continue
+            currentState := "Caps"
+        } else {
+            try {
+                currentState := isCN() ? "CN" : "EN"
+            } catch {
+                hideSymbol()
+                continue
+            }
         }
-        try {
-            v := isCN() ? "CN" : "EN"
-        } catch {
-            hideSymbol()
-            continue
+
+        loadCursor(currentState)
+
+        if (symbolShowMode == 1) {
+            ShowSymbolEx(currentState)
+        } else {
+            inputStateChanged := currentState != lastInputState
+            lastInputState := currentState
+            if (inputStateChanged || GetKeyState("LButton", "P")) {
+                ShowSymbolEx(currentState)
+            }
         }
-        loadCursor(v)
-        ShowSymbolEx(v)
     }
 }
 
@@ -229,6 +241,7 @@ updateDelay() {
     if (hideSymbolDelay) {
         SetTimer(updateDelayTimer, 25)
         updateDelayTimer() {
+            static timer := 0
             global needHide, isWait
             if (GetKeyState("LButton", "P")) {
                 needHide := 0
@@ -238,10 +251,14 @@ updateDelay() {
                     isWait := 0
                 }
             }
+            if (A_TimeIdleKeyboard <= leaveDelay) {
+                timer := 0
+            }
             if (!isWait) {
-                if (A_TimeIdleKeyboard >= hideSymbolDelay - delay) {
+                if (A_TimeIdleKeyboard >= hideSymbolDelay - delay || timer >= hideSymbolDelay) {
                     needHide := 1
                     hideSymbol()
+                    timer := 0
                 } else {
                     needHide := 0
                 }
@@ -251,6 +268,7 @@ updateDelay() {
                 needHide := 0
                 isWait := 0
             }
+            timer += 25
         }
     }
 }

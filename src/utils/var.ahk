@@ -1,13 +1,11 @@
 ; InputTip
 
-baseUrl := ["https://gitee.com/abgox/InputTip/raw/main/", "https://github.com/abgox/InputTip/raw/main/"]
-
-setTrayIcon(readIni("iconRunning", "InputTipSymbol\default\favicon.png"))
-
 filename := SubStr(A_ScriptName, 1, StrLen(A_ScriptName) - 4)
 fileLnk := filename ".lnk"
-fileDesc := "InputTip - 一个输入法状态管理工具(提示/切换)"
+fileDesc := "InputTip - 输入法状态管理工具"
 JAB_PID := ""
+
+setTrayIcon(readIni("iconRunning", "InputTipIcon\default\app.png"))
 
 try {
     keyCount := A_Args[1]
@@ -73,29 +71,31 @@ changeCursor := readIni("changeCursor", 0)
 */
 symbolType := readIni("symbolType", 1)
 ; 符号的垂直偏移量的参考原点
-symbolOffsetBase := readIni("symbolOffsetBase", 0)
+symbolOffsetBase := readIni("symbolOffsetBase", 1)
 
-; 是否在任意窗口中，符号都显示在鼠标附近
+; 是否在所有窗口中，符号都显示在鼠标附近
 showCursorPos := readIni("showCursorPos", 0)
 ; 需要将符号显示在鼠标附近的窗口列表
 ShowNearCursor := StrSplit(readIniSection("ShowNearCursor"), "`n")
 ; 符号显示在鼠标附近时的特殊偏移量 x
 showCursorPos_x := readIni("showCursorPos_x", 0)
 ; 符号显示在鼠标附近时的特殊偏移量 y
-showCursorPos_y := readIni("showCursorPos_y", -20)
+showCursorPos_y := readIni("showCursorPos_y", 30)
 
-; 当鼠标悬浮在符号上时，符号是否需要隐藏
+; 当鼠标悬停在符号上时，符号是否需要隐藏
 hoverHide := readIni("hoverHide", 1)
 
 ; 在多少毫秒后隐藏符号，0 表示永不隐藏
 hideSymbolDelay := readIni("hideSymbolDelay", 0)
 
+symbolShowMode := readIni("symbolShowMode", 1)
+
 ; 轮询响应间隔
 delay := readIni("delay", 20)
 
 ; 托盘菜单图标
-iconRunning := readIni("iconRunning", "InputTipSymbol\default\favicon.png")
-iconPaused := readIni("iconPaused", "InputTipSymbol\default\favicon-pause.png")
+iconRunning := readIni("iconRunning", "InputTipIcon\default\app.png")
+iconPaused := readIni("iconPaused", "InputTipIcon\default\app-paused.png")
 
 ; 开机自启动
 isStartUp := readIni("isStartUp", 0)
@@ -231,11 +231,17 @@ updateCursor() {
 
     _ := {}
 
+    colorMap := Map(
+        "CN", "red",
+        "EN", "blue",
+        "Caps", "green",
+    )
+
     for state in ["CN", "EN", "Caps"] {
-        dir := readIni(state "_cursor", "InputTipCursor\default\" state)
+        dir := readIni(state "_cursor", "InputTipCursor\default\oreo-" colorMap[state])
         if (!DirExist(dir)) {
-            writeIni(state "_cursor", "InputTipCursor\default\" state)
-            dir := "InputTipCursor\default\" state
+            writeIni(state "_cursor", "InputTipCursor\default\oreo-" colorMap[state])
+            dir := "InputTipCursor\default\oreo-" colorMap[state]
         }
         _.%state% := dir
 
@@ -309,17 +315,16 @@ updateSymbol(configName := "", configValue := "") {
             enableIsolateConfigText: readIni("enableIsolateConfigText", 0),
         }
 
-        infoCN := {
+        info := {
+            ; CN
             CN_color: "red",
             CN_Text: "中",
             textSymbol_CN_color: "red",
-        }
-        infoEN := {
+            ; EN
             EN_color: "blue",
             EN_Text: "英",
             textSymbol_EN_color: "blue",
-        }
-        infoCaps := {
+            ; Caps
             Caps_color: "green",
             Caps_Text: "大",
             textSymbol_Caps_color: "green",
@@ -329,19 +334,13 @@ updateSymbol(configName := "", configValue := "") {
             ; * 图片符号相关配置
             ; 文件路径
             if (state) {
-                defaultPath := "InputTipSymbol\default\" state ".png"
-                picPath := readIni(state "_pic", defaultPath)
-                if (picPath && (!RegExMatch(picPath, ".*\.png$") || !FileExist(picPath))) {
-                    writeIni(state "_pic", defaultPath)
-                    picPath := defaultPath
-                }
-                symbolConfig.%state "_pic"% := picPath
+                symbolConfig.%state "_pic"% := readIni(state "_pic", "InputTipSymbol\default\triangle-" info.%state "_color"% ".png")
             }
             ; 偏移量
             _ := "pic_offset_x" state
-            symbolConfig.%_% := readIni(_, -30)
+            symbolConfig.%_% := readIni(_, -27)
             _ := "pic_offset_y" state
-            symbolConfig.%_% := readIni(_, -40)
+            symbolConfig.%_% := readIni(_, 0)
             ; 宽高
             _ := "pic_symbol_width" state
             symbolConfig.%_% := readIni(_, 15)
@@ -352,13 +351,13 @@ updateSymbol(configName := "", configValue := "") {
             ; 背景颜色
             if (state) {
                 _ := state "_color"
-                symbolConfig.%_% := StrReplace(readIni(_, %"info" state%.%_%), '#', '')
+                symbolConfig.%_% := StrReplace(readIni(_, info.%_%), '#', '')
             }
             ; 偏移量
             _ := "offset_x" state
-            symbolConfig.%_% := readIni(_, 10)
+            symbolConfig.%_% := readIni(_, 0)
             _ := "offset_y" state
-            symbolConfig.%_% := readIni(_, -30)
+            symbolConfig.%_% := readIni(_, 10)
             ; 透明度
             _ := "transparent" state
             symbolConfig.%_% := readIni(_, 222)
@@ -375,12 +374,12 @@ updateSymbol(configName := "", configValue := "") {
             ; 文本字符
             if (state) {
                 _ := state "_Text"
-                symbolConfig.%_% := readIni(_, %"info" state%.%_%)
+                symbolConfig.%_% := readIni(_, info.%_%)
             }
             ; 背景颜色
             if (state) {
                 _ := "textSymbol_" state "_color"
-                symbolConfig.%_% := StrReplace(readIni(_, %"info" state%.%_%), '#', '')
+                symbolConfig.%_% := StrReplace(readIni(_, info.%_%), '#', '')
             }
             ; 字体
             _ := "font_family" state
@@ -398,7 +397,7 @@ updateSymbol(configName := "", configValue := "") {
             _ := "textSymbol_offset_x" state
             symbolConfig.%_% := readIni(_, 0)
             _ := "textSymbol_offset_y" state
-            symbolConfig.%_% := readIni(_, -45)
+            symbolConfig.%_% := readIni(_, 10)
             ; 透明度
             _ := "textSymbol_transparent" state
             symbolConfig.%_% := readIni(_, 222)
@@ -428,6 +427,8 @@ updateSymbol(configName := "", configValue := "") {
                     try {
                         _.AddPicture("w" w " h" h, pic_path)
                     }
+                } else {
+                    symbolGui.%state% := ""
                 }
             }
         case 2:
@@ -451,6 +452,8 @@ updateSymbol(configName := "", configValue := "") {
                         case 2: _.Opt("+e0x00000200")
                         case 3: _.Opt("+e0x00020000")
                     }
+                } else {
+                    symbolGui.%state% := ""
                 }
             }
         case 3:
@@ -486,6 +489,8 @@ updateSymbol(configName := "", configValue := "") {
                         case 3: _.Opt("-LastFound +e0x00020000")
                         default: _.Opt("-LastFound")
                     }
+                } else {
+                    symbolGui.%state% := ""
                 }
             }
     }
@@ -497,14 +502,15 @@ loadSymbol(state, left, top, right, bottom, isShowCursorPos := 0) {
 
     if (!isShowCursorPos) {
         if (left = old_left && top = old_top) {
-            ; XXX: 如果鼠标一直悬浮在符号上，同时有键盘操作，就会出现符号闪烁
-            if (state = lastSymbol || (isOverSymbol && A_TimeIdleKeyboard > leaveDelay)) {
+            if (state = lastSymbol || isOverSymbol) {
                 return
             }
         } else {
             isOverSymbol := 0
         }
     }
+    old_top := top
+    old_left := left
 
     if (!symbolType || !canShowSymbol) {
         hideSymbol()
@@ -572,8 +578,6 @@ loadSymbol(state, left, top, right, bottom, isShowCursorPos := 0) {
     }
 
     lastSymbol := state
-    old_top := top
-    old_left := left
 }
 ; 重载符号
 reloadSymbol() {
@@ -603,17 +607,16 @@ hideSymbol() {
     global lastSymbol := ""
 }
 
-; 更新符号显示黑白名单和自动切换列表
+; 更新符号的黑白名单和自动切换列表
 updateList() {
     global
 
     restartJAB()
 
-
-    ; 应用列表: 符号显示黑名单
+    ; 应用列表: 符号的黑名单
     app_HideSymbol := StrSplit(readIniSection("App-HideSymbol"), "`n")
 
-    ; 应用列表: 符号显示白名单
+    ; 应用列表: 符号的白名单
     app_ShowSymbol := StrSplit(readIniSection("App-ShowSymbol"), "`n")
 
     updateAutoSwitchList()

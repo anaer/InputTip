@@ -1,6 +1,10 @@
 ; InputTip
 
-#Include utils/options.ahk
+#Warn All, Off
+
+#Include utils/verify-file.ahk
+
+#Include "*i utils/options.ahk"
 
 ;@AHK2Exe-SetName InputTip
 ;@Ahk2Exe-SetOrigFilename InputTip.ahk
@@ -9,21 +13,20 @@
 
 isJAB := 0
 
-#Include utils/tools.ahk
-#Include utils/create-gui.ahk
-#Include utils/ini.ahk
-#Include utils/IME.ahk
-#Include utils/app-list.ahk
-#Include utils/hotkey-gui.ahk
-#Include menu/tray-menu.ahk
-#Include utils/verify-file.ahk
-#Include utils/var.ahk
-#Include utils/check-version.ahk
+#Include "*i utils/tools.ahk"
+#Include "*i utils/create-gui.ahk"
+#Include "*i utils/ini.ahk"
+#Include "*i utils/IME.ahk"
+#Include "*i utils/app-list.ahk"
+#Include "*i utils/hotkey-gui.ahk"
+#Include "*i menu/tray-menu.ahk"
+#Include "*i utils/var.ahk"
+#Include "*i utils/check-version.ahk"
 
 if (A_IsCompiled) {
     favicon := A_ScriptFullPath
 } else {
-    favicon := A_ScriptDir "\img\favicon.ico"
+    favicon := A_ScriptDir "\InputTipIcon\default\app.ico"
     if (runCodeWithAdmin && !A_IsAdmin) {
         try {
             Run '*RunAs "' A_AhkPath '" /restart "' A_ScriptFullPath '" ' keyCount
@@ -72,7 +75,7 @@ if (hotkey_ShowCode) {
 
 enableKeyCount := readIni("enableKeyCount", 0)
 trayTipTemplate := readIni("trayTipTemplate", "【%appState%中】" fileDesc)
-keyCountTemplate := readIni("keyCountTemplate", "%\n%启动至今，有效的按键次数: %keyCount%")
+keyCountTemplate := readIni("keyCountTemplate", "%\n%【统计中】启动以来, 有效的按键输入次数: %keyCount%")
 A_IconTip := StrReplace(trayTipTemplate, "%appState%", A_IsPaused ? "暂停" : "运行")
 
 updateTip()
@@ -93,7 +96,6 @@ updateTip(flag := "") {
             if (!enableKeyCount) {
                 SetTimer(, 0)
                 last := ""
-                keyCount := 0
                 return
             }
             if (A_PriorKey != last) {
@@ -117,10 +119,10 @@ symbolPaths := readIni("symbolPaths", "")
 iconPaths := readIni("iconPaths", "")
 cursorDir := readIni("cursorDir", "")
 
-SetTimer(getDirTimer, -1)
-getDirTimer() {
-    _symbolPaths := arrJoin(getPicList(), ":")
-    _iconPaths := arrJoin(getPicList(":InputTipSymbol\default\favicon.png:InputTipSymbol\default\favicon-pause.png:", ":InputTipSymbol\default\offer.png:InputTipSymbol\default\Caps.png:InputTipSymbol\default\EN.png:InputTipSymbol\default\CN.png:"), ":")
+SetTimer(getPathList, -1)
+getPathList() {
+    _symbolPaths := arrJoin(getPicList("InputTipSymbol", ":InputTipSymbol\default\triangle-red.png:InputTipSymbol\default\triangle-blue.png:InputTipSymbol\default\triangle-green.png:"), ":")
+    _iconPaths := arrJoin(getPicList("InputTipIcon", ":InputTipIcon\default\app.png:InputTipIcon\default\app-paused.png:"), ":")
     _cursorDir := arrJoin(getCursorDir(), ":")
     if (symbolPaths != _symbolPaths) {
         global symbolPaths := _symbolPaths
@@ -606,4 +608,4 @@ showIconTimer() {
 
 #Include "*i plugins/InputTip.plugin.ahk"
 
-#Include utils/show.ahk
+#Include "*i utils/show.ahk"
