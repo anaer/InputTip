@@ -1,12 +1,12 @@
 ; InputTip
 
-fn_switch_window(*) {
+fn_auto_exit(*) {
     showGui()
     showGui(deep := 0) {
-        createUniqueGui(switchWindowGui).Show()
-        switchWindowGui(info) {
-            g := createGuiOpt("InputTip - 指定窗口自动切换输入法状态")
-            tab := g.AddTab3("-Wrap", ["中文状态", "英文状态", "大写锁定", "关于"])
+        createUniqueGui(autoExitGui).Show()
+        autoExitGui(info) {
+            g := createGuiOpt("InputTip - 指定窗口自动退出")
+            tab := g.AddTab3("-Wrap", ["自动退出", "关于"])
             tab.UseTab(1)
 
             if (info.i) {
@@ -18,7 +18,7 @@ fn_switch_window(*) {
 
             addItem(state) {
                 gc.%"LV_" state%.Opt("-Redraw")
-                valueArr := StrSplit(readIniSection("App-" state), "`n")
+                valueArr := StrSplit(readIniSection("App-Auto-" state), "`n")
                 for v in valueArr {
                     kv := StrSplit(v, "=", , 2)
                     part := StrSplit(kv[2], ":", , 4)
@@ -37,7 +37,7 @@ fn_switch_window(*) {
                         tipRegex := isRegex ? "正则" : "相等"
                         gc.%"LV_" state%.Add(, name, tipGlobal, tipRegex, title, kv[1])
                     } else {
-                        IniDelete("InputTip.ini", "App-" state, kv[1])
+                        IniDelete("InputTip.ini", "App-Auto-" state, kv[1])
                     }
                 }
                 gc.%"LV_" state%.Opt("+Redraw")
@@ -74,16 +74,13 @@ fn_switch_window(*) {
             }
 
             fn_edit(LV, RowNumber, from, action, itemValue) {
-                ; 是否自动添加到符号的白名单中
-                needAddWhiteList := 1
-
                 if (action == "edit") {
                     actionText := "编辑"
                 } else {
                     actionText := "添加"
                 }
 
-                label := "正在" actionText "一条自动切换规则"
+                label := "正在" actionText "一条自动" stateMap.%from% "规则"
 
                 g := createGuiOpt("InputTip - " label)
 
@@ -93,17 +90,6 @@ fn_switch_window(*) {
                 }
                 w := info.w
                 bw := w - g.MarginX * 2
-
-                if (action != "edit") {
-                    g.AddText("cRed", "是否添加到【符号的白名单】中: ")
-                    _ := g.AddDropDownList("yp", ["【否】不添加", "【是】自动添加"])
-                    _.Value := needAddWhiteList + 1
-                    _.OnEvent("Change", e_change)
-                    e_change(item, *) {
-                        needAddWhiteList := item.value - 1
-                    }
-                    g.AddText("xs cGray", "如果选择【是】，且它在白名单中不存在，将以【进程级】自动添加")
-                }
 
                 scaleWidth := bw / 1.5
 
@@ -116,8 +102,8 @@ fn_switch_window(*) {
                     itemValue.exe_name := v
                 }
 
-                g.AddText("xs", "2. 状态切换: ")
-                _ := g.AddDropDownList("yp w" scaleWidth, ["中文状态", "英文状态", "大写锁定"])
+                g.AddText("xs", "2. 行为类型: ")
+                _ := g.AddDropDownList("yp Disabled w" scaleWidth, ["暂停", "退出"])
                 _.Text := itemValue.status
                 _.OnEvent("Change", e_changeState)
                 e_changeState(item, *) {
@@ -169,7 +155,7 @@ fn_switch_window(*) {
 
                     if (delete) {
                         try {
-                            IniDelete("InputTip.ini", "App-" from, itemValue.id)
+                            IniDelete("InputTip.ini", "App-Auto-" from, itemValue.id)
                             LV.Delete(RowNumber)
                             gc.%from "_title"%.Text := "( " gc.%"LV_" from%.GetCount() " 个 )"
                         }
@@ -179,38 +165,31 @@ fn_switch_window(*) {
                         value := itemValue.exe_name ":" isGlobal ":" isRegex ":" itemValue.title
                         ; 没有进行移动
                         if (itemValue.status == from) {
-                            writeIni(itemValue.id, value, "App-" from, "InputTip.ini")
+                            writeIni(itemValue.id, value, "App-Auto-" from, "InputTip.ini")
                             LV.Modify(RowNumber, , itemValue.exe_name, itemValue.tipGlobal, itemValue.tipRegex, itemValue.title, itemValue.id)
                         } else {
-                            if (action == "edit") {
-                                try {
-                                    IniDelete("InputTip.ini", "App-" from, itemValue.id)
-                                    LV.Delete(RowNumber)
-                                    gc.%from "_title"%.Text := "( " gc.%"LV_" from%.GetCount() " 个 )"
-                                }
+                            try {
+                                IniDelete("InputTip.ini", "App-Auto-" from, itemValue.id)
+                                LV.Delete(RowNumber)
+                                gc.%from "_title"%.Text := "( " gc.%"LV_" from%.GetCount() " 个 )"
                             }
                             state := stateTextMap.%itemValue.status%
-                            writeIni(itemValue.id, value, "App-" state, "InputTip.ini")
+                            writeIni(itemValue.id, value, "App-Auto-" state, "InputTip.ini")
                             gc.%"LV_" state%.Insert(RowNumber, , itemValue.exe_name, itemValue.tipGlobal, itemValue.tipRegex, itemValue.title, itemValue.id)
                             gc.%state "_title"%.Text := "( " gc.%"LV_" state%.GetCount() " 个 )"
-                        }
-                        if (needAddWhiteList) {
-                            updateWhiteList(itemValue.exe_name)
                         }
                     }
                     try {
                         autoHdrLV(gc.%"LV_" state%)
                     }
-                    updateAutoSwitchList()
+                    global app_AutoExit := StrSplit(readIniSection("App-Auto-Exit"), "`n")
                 }
                 return g
             }
 
-
-            for i, v in ["CN", "EN", "Caps"] {
+            for i, v in ["Exit"] {
                 g.AddText("Section cRed", gui_help_tip)
-                g.AddText("Section", "需要自动切换到")
-                g.AddText("yp cRed", stateMap.%v%)
+                g.AddText("Section", "需要自动" stateMap.%v% " InputTip")
                 g.AddText("yp", "的应用窗口")
                 gc.%v "_title"% := g.AddText("yp cRed w" bw / 3, "( 0 个 )")
 
@@ -288,8 +267,8 @@ fn_switch_window(*) {
                 }
             }
 
-            g.AddEdit("ReadOnly VScroll r12 w" w, "1. 简要说明`n   - 这个菜单用来设置【指定窗口自动切换状态】的匹配规则`n   - 上方是三个 Tab 标签页: 【中文状态】【英文状态】【大写锁定】`n   - 下方是对应的规则列表`n   - 双击列表中的任意一行，进行编辑或删除`n   - 如果需要添加，请查看下方按钮相关的使用说明`n`n2. 规则列表 —— 进程名称`n   - 应用窗口实际的进程名称`n`n3. 规则列表 —— 匹配范围`n   - 【进程级】或【标题级】，它控制自动切换的时机`n   - 【进程级】: 只有从一个进程切换到另一个进程时，才会触发`n   - 【标题级】: 只要窗口标题发生变化，且匹配成功，就会触发`n`n4. 规则列表 —— 匹配模式`n   - 只有当匹配范围为【标题级】时，才会生效`n   - 【相等】或【正则】，它控制标题匹配的模式`n   - 【相等】: 只有窗口标题和指定的标题完全一致，才会触发自动切换`n   - 【正则】: 使用正则表达式匹配标题，匹配成功则触发自动切换`n`n5. 规则列表 —— 匹配标题`n   - 只有当匹配范围为【标题级】时，才会生效`n   - 指定一个标题或者正则表达式，与【匹配模式】相对应，匹配成功则触发自动切换`n   - 如果不知道当前窗口的相关信息(进程/标题等)，可以通过以下方式获取`n      - 【托盘菜单】=>【获取窗口信息】`n`n6. 规则列表 —— 创建时间`n   - 它是每条规则的创建时间`n`n7. 规则列表 —— 操作`n   - 双击列表中的任意一行，进行编辑或删除`n`n8. 按钮 —— 快捷添加`n   - 点击它，可以添加一条新的规则`n   - 它会弹出一个新的菜单页面，会显示当前正在运行的【应用进程列表】`n   - 你可以双击【应用进程列表】中的任意一行进行快速添加`n   - 详细的使用说明请参考弹出的菜单页面中的【关于】`n`n9. 按钮 —— 手动添加`n   - 点击它，可以添加一条新的规则`n   - 它会直接弹出添加窗口，你需要手动填写进程名称、标题等信息`n`n10. 自动切换生效需要满足的前提条件`n   - 前提条件: `n       - 当 InputTip 执行自动切换时，此时的输入法可以正常切换状态`n       - 大写锁定除外，因为它是通过模拟输入【CapsLock】按键实现，不受其他影响`n`n   - 以【微软输入法】为例`n   - 和常规输入法不同，只有当聚焦到输入框时，它才能正常切换输入法状态`n   - 但是，当 InputTip 执行自动切换时，可能并没有聚焦到输入框，自动切换就会失效`n`n   - 再以【美式键盘 ENG】为例`n   - 它只有英文状态和大写锁定，所以只有英文状态的和大写锁定的自动切换有效")
-            g.AddLink(, '相关链接: <a href="https://inputtip.abgox.com/faq/switch-state">指定窗口自动切换状态</a>')
+            g.AddEdit("ReadOnly VScroll r12 w" w, "1. 简要说明`n   - 这个菜单用来设置【指定窗口自动退出】的匹配规则`n   - 通常用于指定一些游戏进程，以确保启动游戏时自动退出 InputTip`n   - 请注意，启动游戏前，手动确保退出 InputTip 才是最佳的使用习惯`n`n   - 下方是对应的规则列表`n   - 双击列表中的任意一行，进行编辑或删除`n   - 如果需要添加，请查看下方按钮相关的使用说明`n`n2. 规则列表 —— 进程名称`n   - 应用窗口实际的进程名称`n`n3. 规则列表 —— 匹配范围`n   - 【进程级】或【标题级】，它控制触发时机`n   - 【进程级】: 只有从一个进程切换到另一个进程时，才会触发`n   - 【标题级】: 只要窗口标题发生变化，且匹配成功，就会触发`n`n4. 规则列表 —— 匹配模式`n   - 只有当匹配范围为【标题级】时，才会生效`n   - 【相等】或【正则】，它控制标题匹配的模式`n   - 【相等】: 只有窗口标题和指定的标题完全一致，才会触发`n   - 【正则】: 使用正则表达式匹配标题，匹配成功则触发`n`n5. 规则列表 —— 匹配标题`n   - 只有当匹配范围为【标题级】时，才会生效`n   - 指定一个标题或者正则表达式，与【匹配模式】相对应，匹配成功则触发`n   - 如果不知道当前窗口的相关信息(进程/标题等)，可以通过以下方式获取`n      - 【托盘菜单】=>【获取窗口信息】`n`n6. 规则列表 —— 创建时间`n   - 它是每条规则的创建时间`n`n7. 规则列表 —— 操作`n   - 双击列表中的任意一行，进行编辑或删除`n`n8. 按钮 —— 快捷添加`n   - 点击它，可以添加一条新的规则`n   - 它会弹出一个新的菜单页面，会显示当前正在运行的【应用进程列表】`n   - 你可以双击【应用进程列表】中的任意一行进行快速添加`n   - 详细的使用说明请参考弹出的菜单页面中的【关于】`n`n9. 按钮 —— 手动添加`n   - 点击它，可以添加一条新的规则`n   - 它会直接弹出添加窗口，你需要手动填写进程名称、标题等信息")
+            g.AddLink(, '相关链接: <a href="https://inputtip.abgox.com/faq/about-virus">游戏可能将 InputTip 视为病毒外挂</a>')
 
             g.OnEvent("Close", fn_close)
             fn_close(*) {
